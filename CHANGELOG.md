@@ -1,3 +1,7 @@
+## 0.0.2
+
+Update example and fix bug.
+
 ## 0.0.1
 
-* TODO: Describe initial release.
+Init all files about Serial Port on Windows.
