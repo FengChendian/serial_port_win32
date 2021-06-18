@@ -5,7 +5,10 @@ import 'package:win32/win32.dart';
 import 'package:ffi/ffi.dart';
 
 class SerialPort {
+  /// [portName] like COM3
   final String portName;
+
+  /// just a native string
   final LPWSTR _portNameUtf16;
 
   /// DCB struct
@@ -13,14 +16,17 @@ class SerialPort {
 
   final commTimeouts = calloc<COMMTIMEOUTS>();
 
+  /// file handle
+  /// [handler] will be [INVALID_HANDLE_VALUE] if failed
   int? handler;
 
-  Pointer<DWORD> bytesRead = calloc<DWORD>();
+  Pointer<DWORD> _bytesRead = calloc<DWORD>();
 
-  Pointer<OVERLAPPED> over = calloc<OVERLAPPED>();
+  Pointer<OVERLAPPED> _over = calloc<OVERLAPPED>();
 
   static final Map<String, SerialPort> _cache = <String, SerialPort>{};
 
+  /// reusable instance using [factory]
   factory SerialPort(String portName) {
     return _cache.putIfAbsent(
         portName, () => SerialPort._internal(portName, TEXT(portName)));
@@ -35,7 +41,7 @@ class SerialPort {
       if (lastError == ERROR_FILE_NOT_FOUND) {
         Exception(_portNameUtf16.toDartString() + "不可用");
       } else {
-        Exception('get ${lastError}');
+        Exception('get $lastError');
       }
       Exception("handler error");
       return;
@@ -50,6 +56,7 @@ class SerialPort {
     SetCommTimeouts(handler!, commTimeouts);
   }
 
+  /// using [initDCB] to init DCB parameters when instance was created
   void initDCB() {
     /// [dcb] parameters initialize
     /// default BaudRate is 115200
@@ -65,6 +72,7 @@ class SerialPort {
     setCommState();
   }
 
+  /// When dcb struct is changed, you must call [setCommState] to update settings.
   void setCommState() {
     if (SetCommState(handler!, dcb) == 0) {
       Exception('SetCommState error');
@@ -98,12 +106,15 @@ class SerialPort {
     setCommState();
   }
 
+  ///[readBytes] is an [async] function
   Future<Uint8List> readBytes(int bytesSize) async {
     final lpBuffer = calloc<Uint16>(bytesSize);
-    ReadFile(handler!, lpBuffer, bytesSize, bytesRead, over);
+    ReadFile(handler!, lpBuffer, bytesSize, _bytesRead, _over);
     return lpBuffer.asTypedList(bytesSize).buffer.asUint8List();
   }
 
+  /// read Registry in Windows to get ports
+  /// [getAvailablePorts] can be called using SerialPort.getAvailablePorts()
   static List<String> getAvailablePorts() {
     /// availablePorts String list
     List<String> portsList = [];
@@ -176,6 +187,7 @@ class SerialPort {
     return portsList;
   }
 
+  /// [close] port which was opened
   void close() {
     CloseHandle(handler!);
   }

@@ -1,3 +1,7 @@
+## 0.0.3
+
+Add more docs.
+
 ## 0.0.2
 
 Update example and fix bug.
