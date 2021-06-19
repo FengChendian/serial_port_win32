@@ -11,9 +11,10 @@ class SerialPort {
   /// just a native string
   final LPWSTR _portNameUtf16;
 
-  /// DCB struct
+  /// win32 [DCB] struct
   final dcb = calloc<DCB>();
 
+  /// win32 [COMMTIMEOUTS] struct
   final commTimeouts = calloc<COMMTIMEOUTS>();
 
   /// file handle
@@ -23,6 +24,9 @@ class SerialPort {
   Pointer<DWORD> _bytesRead = calloc<DWORD>();
 
   Pointer<OVERLAPPED> _over = calloc<OVERLAPPED>();
+
+  /// registry path
+  static final _keyPath = TEXT("HARDWARE\\DEVICEMAP\\SERIALCOMM");
 
   static final Map<String, SerialPort> _cache = <String, SerialPort>{};
 
@@ -120,9 +124,8 @@ class SerialPort {
     List<String> portsList = [];
 
     final hKeyPtr = calloc<IntPtr>();
-    final keyPath = TEXT("HARDWARE\\DEVICEMAP\\SERIALCOMM");
 
-    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, keyPath, 0, KEY_READ, hKeyPtr) !=
+    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, _keyPath, 0, KEY_READ, hKeyPtr) !=
         ERROR_SUCCESS) {
       RegCloseKey(hKeyPtr.value);
       Exception("can't open Register");
@@ -184,6 +187,15 @@ class SerialPort {
       // lpcbData = calloc<DWORD>();
     }
     RegCloseKey(hKeyPtr.value);
+
+    /// free all pointer
+    free(hKeyPtr);
+    free(lpValueName);
+    free(lpcchValueName);
+    free(lpType);
+    free(lpData);
+    free(lpcbData);
+
     return portsList;
   }
 

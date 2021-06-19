@@ -25,7 +25,14 @@ final port = SerialPort("COM5");
 ```dart
 port.BaudRate = 115200;
 port.ByteSize = 8;
+port.StopBits = 0;
 /// and so on, parameters like win32.
+```
+
+### Read
+
+```dart
+print(await ports.readBytes(2));
 ```
 
 ### Close Serial Port
