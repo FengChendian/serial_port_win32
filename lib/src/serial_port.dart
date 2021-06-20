@@ -25,7 +25,7 @@ class SerialPort {
 
   Pointer<OVERLAPPED> _over = calloc<OVERLAPPED>();
 
-  /// registry path
+  /// [_keyPath] is registry path which will be oepned
   static final _keyPath = TEXT("HARDWARE\\DEVICEMAP\\SERIALCOMM");
 
   static final Map<String, SerialPort> _cache = <String, SerialPort>{};
@@ -51,7 +51,7 @@ class SerialPort {
       return;
     }
 
-    initDCB();
+    _initDCB();
 
     /// Timeout setting
     commTimeouts.ref.ReadIntervalTimeout = 10;
@@ -60,8 +60,8 @@ class SerialPort {
     SetCommTimeouts(handler!, commTimeouts);
   }
 
-  /// using [initDCB] to init DCB parameters when instance was created
-  void initDCB() {
+  /// using [_initDCB] to init DCB parameters when instance was created
+  void _initDCB() {
     /// [dcb] parameters initialize
     /// default BaudRate is 115200
     dcb.ref.BaudRate = 115200;
@@ -110,11 +110,74 @@ class SerialPort {
     setCommState();
   }
 
-  ///[readBytes] is an [async] function
+  /// [readBytes] is an [async] function
   Future<Uint8List> readBytes(int bytesSize) async {
     final lpBuffer = calloc<Uint16>(bytesSize);
     ReadFile(handler!, lpBuffer, bytesSize, _bytesRead, _over);
     return lpBuffer.asTypedList(bytesSize).buffer.asUint8List();
+  }
+
+  /// [_getRegistryKeyValue] will open RegistryKey in Serial Path.
+  static int _getRegistryKeyValue() {
+    final hKeyPtr = calloc<IntPtr>();
+    try {
+      if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, _keyPath, 0, KEY_READ, hKeyPtr) !=
+          ERROR_SUCCESS) {
+        RegCloseKey(hKeyPtr.value);
+        throw Exception("can't open Register");
+      }
+      return hKeyPtr.value;
+    } finally {
+      free(hKeyPtr);
+    }
+  }
+
+  static String? _enumrateKey(int hKey, int dwIndex) {
+    /// [lpValueName]
+    /// A pointer to a buffer that receives the name of the value as a null-terminated string.
+    /// This buffer must be large enough to include the terminating null character.
+    final lpValueName = wsalloc(MAX_PATH);
+
+    /// [lpcchValueName]
+    /// A pointer to a variable that specifies the size of the buffer pointed to by the lpValueName parameter
+    final lpcchValueName = calloc<DWORD>();
+    lpcchValueName.value = MAX_PATH;
+
+    /// A pointer to a variable that receives a code indicating the type of data stored in the specified value.
+    final lpType = calloc<DWORD>();
+
+    /// A pointer to a buffer that receives the data for the value entry.
+    /// This parameter can be NULL if the data is not required.
+    final lpData = calloc<BYTE>(MAX_PATH);
+
+    /// [lpcbData]
+    /// A pointer to a variable that specifies the size of the buffer pointed to by the lpData parameter, in bytes.
+    /// When the function returns, the variable receives the number of bytes stored in the buffer.
+    final lpcbData = calloc<DWORD>();
+    lpcbData.value = MAX_PATH;
+
+    try {
+      final status = RegEnumValue(hKey, dwIndex, lpValueName, lpcchValueName,
+          nullptr, lpType, lpData, lpcbData);
+
+      switch (status) {
+        case ERROR_SUCCESS:
+          return lpData.cast<Utf16>().toDartString();
+        case ERROR_MORE_DATA:
+          throw Exception("ERROR_MORE_DATA");
+        case ERROR_NO_MORE_ITEMS:
+          return null;
+        default:
+          throw Exception("unknown error!");
+      }
+    } finally {
+      /// free all pointer
+      free(lpValueName);
+      free(lpcchValueName);
+      free(lpType);
+      free(lpData);
+      free(lpcbData);
+    }
   }
 
   /// read Registry in Windows to get ports
@@ -123,78 +186,25 @@ class SerialPort {
     /// availablePorts String list
     List<String> portsList = [];
 
-    final hKeyPtr = calloc<IntPtr>();
-
-    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, _keyPath, 0, KEY_READ, hKeyPtr) !=
-        ERROR_SUCCESS) {
-      RegCloseKey(hKeyPtr.value);
-      Exception("can't open Register");
-      return portsList;
-    }
-
-    int status = ERROR_SUCCESS;
+    final hKey = _getRegistryKeyValue();
 
     /// The index of the value to be retrieved.
     /// This parameter should be zero for the first call to the RegEnumValue function and then be incremented for subsequent calls.
     int dwIndex = 0;
 
-    /// lpValueName
-    /// A pointer to a buffer that receives the name of the value as a null-terminated string.
-    /// This buffer must be large enough to include the terminating null character.
-    final lpValueName = wsalloc(MAX_PATH);
-
-    /// lpcchValueName
-    /// A pointer to a variable that specifies the size of the buffer pointed to by the lpValueName parameter
-    final lpcchValueName = calloc<Uint32>();
-    lpcchValueName.value = MAX_PATH;
-
-    /// A pointer to a variable that receives a code indicating the type of data stored in the specified value.
-    final lpType = calloc<Uint32>();
-
-    /// A pointer to a buffer that receives the data for the value entry.
-    /// This parameter can be NULL if the data is not required.
-    Pointer<Uint8> lpData = calloc<Uint8>();
-
-    /// lpcbData
-    /// A pointer to a variable that specifies the size of the buffer pointed to by the lpData parameter, in bytes.
-    /// When the function returns, the variable receives the number of bytes stored in the buffer.
-    var lpcbData = calloc<DWORD>();
-    lpcbData.value = MAX_PATH;
-
-    while (status != ERROR_NO_MORE_ITEMS) {
-      status = RegEnumValue(hKeyPtr.value, dwIndex++, lpValueName,
-          lpcchValueName, nullptr, lpType, lpData, lpcbData);
-
-      switch (status) {
-        case ERROR_SUCCESS:
-          Pointer<Utf8> str = wsalloc(1000).cast();
-          WideCharToMultiByte(
-              0, 0, lpData.cast(), -1, str, MAX_PATH, nullptr, nullptr);
-          // portsList.add(String.fromCharCodes(lpData.asTypedList(8)));
-          portsList.add(str.toDartString());
-          break;
-        case ERROR_MORE_DATA:
-          Exception("ERROR_MORE_DATA");
-          break;
-        default:
-          break;
-      }
-      // lpValueName = wsalloc(1000);
-      // lpcchValueName = calloc<Uint32>();
-      // free(lpcbData);
-      // free(lpValueName);
-      // lpValueName = wsalloc(MAX_PATH);
-      // lpcbData = calloc<DWORD>();
+    String? item;
+    item = _enumrateKey(hKey, dwIndex);
+    if (item == null) {
+      portsList.add('');
     }
-    RegCloseKey(hKeyPtr.value);
 
-    /// free all pointer
-    free(hKeyPtr);
-    free(lpValueName);
-    free(lpcchValueName);
-    free(lpType);
-    free(lpData);
-    free(lpcbData);
+    while (item != null) {
+      portsList.add(item);
+      dwIndex++;
+      item = _enumrateKey(hKey, dwIndex);
+    }
+
+    RegCloseKey(hKey);
 
     return portsList;
   }
