@@ -1,6 +1,5 @@
 import 'dart:ffi';
 import 'dart:typed_data';
-
 import 'package:win32/win32.dart';
 import 'package:ffi/ffi.dart';
 
@@ -11,7 +10,7 @@ class SerialPort {
   /// just a native string
   final LPWSTR _portNameUtf16;
 
-  /// win32 [DCB] struct
+  /// [dcb] is win32 [DCB] struct
   final dcb = calloc<DCB>();
 
   /// win32 [COMMTIMEOUTS] struct
@@ -28,6 +27,11 @@ class SerialPort {
   /// [_keyPath] is registry path which will be oepned
   static final _keyPath = TEXT("HARDWARE\\DEVICEMAP\\SERIALCOMM");
 
+  /// [isOpened] is true when port was opened, [CreateFile] function will open a port.
+  bool _isOpened = false;
+
+  bool get isOpened => _isOpened;
+
   static final Map<String, SerialPort> _cache = <String, SerialPort>{};
 
   /// reusable instance using [factory]
@@ -37,18 +41,20 @@ class SerialPort {
   }
 
   SerialPort._internal(this.portName, this._portNameUtf16) {
+    _openPort();
+  }
+
+  void _openPort() {
     handler = CreateFile(_portNameUtf16, GENERIC_READ | GENERIC_WRITE, 0,
         nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
     if (handler == INVALID_HANDLE_VALUE) {
       final lastError = GetLastError();
       if (lastError == ERROR_FILE_NOT_FOUND) {
-        Exception(_portNameUtf16.toDartString() + "不可用");
+        throw Exception(_portNameUtf16.toDartString() + "is not available");
       } else {
-        Exception('get $lastError');
+        throw Exception('Last error is $lastError');
       }
-      Exception("handler error");
-      return;
     }
 
     _initDCB();
@@ -58,6 +64,8 @@ class SerialPort {
     commTimeouts.ref.ReadTotalTimeoutConstant = 1;
     commTimeouts.ref.ReadTotalTimeoutMultiplier = 0;
     SetCommTimeouts(handler!, commTimeouts);
+
+    _isOpened = true;
   }
 
   /// using [_initDCB] to init DCB parameters when instance was created
@@ -76,6 +84,16 @@ class SerialPort {
     setCommState();
   }
 
+  /// when port was closed by [close] method, you can use [reopenPort] to open it.
+  void reopenPort() {
+    if (_isOpened) {
+      return;
+    } else {
+      _openPort();
+      _isOpened = true;
+    }
+  }
+
   /// When dcb struct is changed, you must call [setCommState] to update settings.
   void setCommState() {
     if (SetCommState(handler!, dcb) == 0) {
@@ -86,6 +104,7 @@ class SerialPort {
     }
   }
 
+  // set serial port [BaudRate]
   // ignore: non_constant_identifier_names
   set BaudRate(int rate) {
     dcb.ref.BaudRate = rate;
@@ -132,7 +151,7 @@ class SerialPort {
     }
   }
 
-  static String? _enumrateKey(int hKey, int dwIndex) {
+  static String? _enumerateKey(int hKey, int dwIndex) {
     /// [lpValueName]
     /// A pointer to a buffer that receives the name of the value as a null-terminated string.
     /// This buffer must be large enough to include the terminating null character.
@@ -193,7 +212,7 @@ class SerialPort {
     int dwIndex = 0;
 
     String? item;
-    item = _enumrateKey(hKey, dwIndex);
+    item = _enumerateKey(hKey, dwIndex);
     if (item == null) {
       portsList.add('');
     }
@@ -201,7 +220,7 @@ class SerialPort {
     while (item != null) {
       portsList.add(item);
       dwIndex++;
-      item = _enumrateKey(hKey, dwIndex);
+      item = _enumerateKey(hKey, dwIndex);
     }
 
     RegCloseKey(hKey);
@@ -212,5 +231,6 @@ class SerialPort {
   /// [close] port which was opened
   void close() {
     CloseHandle(handler!);
+    _isOpened = false;
   }
 }
