@@ -35,69 +35,127 @@ class SerialPort {
   static final Map<String, SerialPort> _cache = <String, SerialPort>{};
 
   /// reusable instance using [factory]
-  factory SerialPort(String portName) {
+  factory SerialPort(
+    String portName, {
+    // ignore: non_constant_identifier_names
+    int BaudRate = CBR_115200,
+    // ignore: non_constant_identifier_names
+    int Parity = NOPARITY,
+    // ignore: non_constant_identifier_names
+    int StopBits = ONESTOPBIT,
+    // ignore: non_constant_identifier_names
+    int ByteSize = 8,
+    // ignore: non_constant_identifier_names
+    int ReadIntervalTimeout = 10,
+    // ignore: non_constant_identifier_names
+    int ReadTotalTimeoutConstant = 1,
+    // ignore: non_constant_identifier_names
+    int ReadTotalTimeoutMultiplier = 0,
+
+    /// if you want open port when create instance, set [openNow] true
+    bool openNow = true,
+  }) {
     return _cache.putIfAbsent(
-        portName, () => SerialPort._internal(portName, TEXT(portName)));
+        portName,
+        () => SerialPort._internal(
+              portName,
+              TEXT(portName),
+              BaudRate: BaudRate,
+              Parity: Parity,
+              StopBits: StopBits,
+              ByteSize: ByteSize,
+              ReadIntervalTimeout: ReadIntervalTimeout,
+              ReadTotalTimeoutConstant: ReadTotalTimeoutConstant,
+              ReadTotalTimeoutMultiplier: ReadTotalTimeoutMultiplier,
+              openNow: openNow,
+            ));
   }
 
-  SerialPort._internal(this.portName, this._portNameUtf16) {
-    _openPort();
+  SerialPort._internal(
+    this.portName,
+    this._portNameUtf16, {
+    // ignore: non_constant_identifier_names
+    required int BaudRate,
+    // ignore: non_constant_identifier_names
+    required int Parity,
+    // ignore: non_constant_identifier_names
+    required int StopBits,
+    // ignore: non_constant_identifier_names
+    required int ByteSize,
+    // ignore: non_constant_identifier_names
+    required int ReadIntervalTimeout,
+    // ignore: non_constant_identifier_names
+    required int ReadTotalTimeoutConstant,
+    // ignore: non_constant_identifier_names
+    required int ReadTotalTimeoutMultiplier,
+    required bool openNow,
+  }) {
+    dcb
+      ..ref.BaudRate = BaudRate
+      ..ref.Parity = Parity
+      ..ref.StopBits = StopBits
+      ..ref.ByteSize = ByteSize;
+    commTimeouts
+      ..ref.ReadIntervalTimeout = 10
+      ..ref.ReadTotalTimeoutConstant = 1
+      ..ref.ReadTotalTimeoutMultiplier = 0;
+    if (openNow) {
+      open();
+    }
   }
 
-  /// [_openPort] can be called when handler is null or handler is closed
-  void _openPort() {
-    handler = CreateFile(_portNameUtf16, GENERIC_READ | GENERIC_WRITE, 0,
-        nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+  /// [open] can be called when handler is null or handler is closed
+  void open() {
+    if (_isOpened == false) {
+      handler = CreateFile(_portNameUtf16, GENERIC_READ | GENERIC_WRITE, 0,
+          nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
-    if (handler == INVALID_HANDLE_VALUE) {
-      final lastError = GetLastError();
-      if (lastError == ERROR_FILE_NOT_FOUND) {
-        throw Exception(_portNameUtf16.toDartString() + "is not available");
-      } else {
-        throw Exception('Last error is $lastError');
+      if (handler == INVALID_HANDLE_VALUE) {
+        final lastError = GetLastError();
+        if (lastError == ERROR_FILE_NOT_FOUND) {
+          throw Exception(_portNameUtf16.toDartString() + "is not available");
+        } else {
+          throw Exception('Last error is $lastError');
+        }
       }
-    }
 
-    _initDCB();
+      _setCommState();
 
-    _initCommTimeouts();
+      _setCommTimeouts();
 
-    _isOpened = true;
-  }
-
-  /// using [_initDCB] to init DCB parameters when instance was created
-  void _initDCB() {
-    /// [dcb] parameters initialize
-    /// default BaudRate is 115200
-    dcb.ref.BaudRate = CBR_115200;
-
-    dcb.ref.ByteSize = 8;
-
-    dcb.ref.StopBits = ONESTOPBIT;
-
-    dcb.ref.Parity = NOPARITY;
-
-    /// [_setCommState] must be called when setting dcb parameters
-    _setCommState();
-  }
-
-  /// [_initCommTimeouts] will initialize [commTimeouts]
-  void _initCommTimeouts() {
-    /// Timeout setting
-    commTimeouts.ref.ReadIntervalTimeout = 10;
-    commTimeouts.ref.ReadTotalTimeoutConstant = 1;
-    commTimeouts.ref.ReadTotalTimeoutMultiplier = 0;
-    _setCommTimeouts();
-  }
-
-  /// when port was closed by [close] method, you can use [reopenPort] to open it.
-  void reopenPort() {
-    if (_isOpened) {
-      return;
-    } else {
-      _openPort();
       _isOpened = true;
+    } else {
+      throw Exception('Port is opened');
     }
+  }
+
+  /// if you want open a port with some extra settings, use [openWithSettings]
+  void openWithSettings({
+    // ignore: non_constant_identifier_names
+    int BaudRate = CBR_115200,
+    // ignore: non_constant_identifier_names
+    int Parity = NOPARITY,
+    // ignore: non_constant_identifier_names
+    int StopBits = ONESTOPBIT,
+    // ignore: non_constant_identifier_names
+    int ByteSize = 8,
+    // ignore: non_constant_identifier_names
+    int ReadIntervalTimeout = 10,
+    // ignore: non_constant_identifier_names
+    int ReadTotalTimeoutConstant = 1,
+    // ignore: non_constant_identifier_names
+    int ReadTotalTimeoutMultiplier = 0,
+  }) {
+    dcb
+      ..ref.BaudRate = BaudRate
+      ..ref.Parity = Parity
+      ..ref.StopBits = StopBits
+      ..ref.ByteSize = ByteSize;
+    commTimeouts
+      ..ref.ReadIntervalTimeout = 10
+      ..ref.ReadTotalTimeoutConstant = 1
+      ..ref.ReadTotalTimeoutMultiplier = 0;
+    open();
   }
 
   /// When [dcb] struct is changed, you must call [_setCommState] to update settings.

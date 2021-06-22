@@ -1,3 +1,9 @@
+## 0.0.8
+
+- remove `reopenPort` function, instead by `open()`
+- add `openWithSettings()` API
+- can setup parameters when create instance
+
 ## 0.0.7
 
 - make API more efficient
