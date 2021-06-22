@@ -44,6 +44,7 @@ class SerialPort {
     _openPort();
   }
 
+  /// [_openPort] can be called when handler is null or handler is closed
   void _openPort() {
     handler = CreateFile(_portNameUtf16, GENERIC_READ | GENERIC_WRITE, 0,
         nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -59,11 +60,7 @@ class SerialPort {
 
     _initDCB();
 
-    /// Timeout setting
-    commTimeouts.ref.ReadIntervalTimeout = 10;
-    commTimeouts.ref.ReadTotalTimeoutConstant = 1;
-    commTimeouts.ref.ReadTotalTimeoutMultiplier = 0;
-    SetCommTimeouts(handler!, commTimeouts);
+    _initCommTimeouts();
 
     _isOpened = true;
   }
@@ -72,16 +69,25 @@ class SerialPort {
   void _initDCB() {
     /// [dcb] parameters initialize
     /// default BaudRate is 115200
-    dcb.ref.BaudRate = 115200;
+    dcb.ref.BaudRate = CBR_115200;
 
     dcb.ref.ByteSize = 8;
 
-    dcb.ref.StopBits = 1;
+    dcb.ref.StopBits = ONESTOPBIT;
 
-    dcb.ref.Parity = 0;
+    dcb.ref.Parity = NOPARITY;
 
-    /// [setCommState] must be called when setting dcb parameters
-    setCommState();
+    /// [_setCommState] must be called when setting dcb parameters
+    _setCommState();
+  }
+
+  /// [_initCommTimeouts] will initialize [commTimeouts]
+  void _initCommTimeouts() {
+    /// Timeout setting
+    commTimeouts.ref.ReadIntervalTimeout = 10;
+    commTimeouts.ref.ReadTotalTimeoutConstant = 1;
+    commTimeouts.ref.ReadTotalTimeoutMultiplier = 0;
+    _setCommTimeouts();
   }
 
   /// when port was closed by [close] method, you can use [reopenPort] to open it.
@@ -94,46 +100,122 @@ class SerialPort {
     }
   }
 
-  /// When dcb struct is changed, you must call [setCommState] to update settings.
-  void setCommState() {
-    if (SetCommState(handler!, dcb) == 0) {
-      Exception('SetCommState error');
-      return;
+  /// When [dcb] struct is changed, you must call [_setCommState] to update settings.
+  void _setCommState() {
+    if (SetCommState(handler!, dcb) == FALSE) {
+      throw Exception('SetCommState error');
     } else {
-      PurgeComm(handler!, 0x0008 | 0x0004);
+      PurgeComm(handler!, PURGE_RXCLEAR | PURGE_TXCLEAR);
+    }
+  }
+
+  /// When [commTimeouts] struct is changed, you must call [_setCommTimeouts] to update settings.
+  void _setCommTimeouts() {
+    if (SetCommTimeouts(handler!, commTimeouts) == FALSE) {
+      throw Exception('SetCommTimeouts error');
     }
   }
 
   // set serial port [BaudRate]
+  /// using standard win32 Value like [CBR_115200]
   // ignore: non_constant_identifier_names
   set BaudRate(int rate) {
     dcb.ref.BaudRate = rate;
-    setCommState();
+    _setCommState();
   }
 
+  /// data byteSize
   // ignore: non_constant_identifier_names
   set ByteSize(int size) {
     dcb.ref.ByteSize = size;
-    setCommState();
+    _setCommState();
   }
 
+  /// 1 stop bit is [ONESTOPBIT], value is 0
+  /// more docs in https://docs.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-dcb
   // ignore: non_constant_identifier_names
   set StopBits(int stopBits) {
     dcb.ref.StopBits = stopBits;
-    setCommState();
+    _setCommState();
   }
 
+  /// You can use [NOPARITY], [ODDPARITY] and so on like win32
   // ignore: non_constant_identifier_names
   set Parity(int parity) {
     dcb.ref.Parity = parity;
-    setCommState();
+    _setCommState();
+  }
+
+  /// [ReadIntervalTimeout]
+  ///
+  /// The maximum time allowed to elapse before the arrival of the next byte on the communications line,
+  /// in milliseconds. If the interval between the arrival of any two bytes exceeds this amount,
+  /// the ReadFile operation is completed and any buffered data is returned.
+  /// A value of zero indicates that interval time-outs are not used.
+  ///
+  // ignore: non_constant_identifier_names
+  set ReadIntervalTimeout(int readIntervalTimeout) {
+    commTimeouts.ref.ReadTotalTimeoutConstant = readIntervalTimeout;
+    _setCommTimeouts();
+  }
+
+  /// [ReadTotalTimeoutMultiplier]
+  ///
+  /// The multiplier used to calculate the total time-out period for read operations, in milliseconds.
+  /// For each read operation, this value is multiplied by the requested number of bytes to be read
+  ///
+  // ignore: non_constant_identifier_names
+  set ReadTotalTimeoutMultiplier(int readTotalTimeoutMultiplier) {
+    commTimeouts.ref.ReadTotalTimeoutMultiplier = readTotalTimeoutMultiplier;
+    _setCommTimeouts();
+  }
+
+  /// A constant used to calculate the total time-out period for read operations, in milliseconds.
+  /// For each read operation, this value is added to the product of the [ReadTotalTimeoutMultiplier]
+  /// member and the requested number of bytes.
+  ///
+  /// A value of zero for both the [ReadTotalTimeoutMultiplier] and [ReadTotalTimeoutConstant] members
+  /// indicates that total time-outs are not used for read operations.
+  ///
+  // ignore: non_constant_identifier_names
+  set ReadTotalTimeoutConstant(int readTotalTimeoutConstant) {
+    commTimeouts.ref.ReadTotalTimeoutConstant = readTotalTimeoutConstant;
+    _setCommTimeouts();
+  }
+
+  /// [WriteTotalTimeoutMultiplier]
+  ///
+  /// The multiplier used to calculate the total time-out period for write operations, in milliseconds.
+  /// For each write operation, this value is multiplied by the number of bytes to be written.
+  ///
+  // ignore: non_constant_identifier_names
+  set WriteTotalTimeoutMultiplier(int writeTotalTimeoutMultiplier) {
+    commTimeouts.ref.WriteTotalTimeoutMultiplier = writeTotalTimeoutMultiplier;
+    _setCommTimeouts();
+  }
+
+  /// [WriteTotalTimeoutConstant]
+  ///
+  /// A constant used to calculate the total time-out period for write operations, in milliseconds.
+  /// For each write operation, this value is added to the product of the WriteTotalTimeoutMultiplier
+  /// member and the number of bytes to be written.
+  ///
+  /// A value of zero for both the WriteTotalTimeoutMultiplier and WriteTotalTimeoutConstant
+  /// members indicates that total time-outs are not used for write operations.
+  ///
+  // ignore: non_constant_identifier_names
+  set WriteTotalTimeoutConstant(int writeTotalTimeoutConstant) {
+    commTimeouts.ref.WriteTotalTimeoutConstant = writeTotalTimeoutConstant;
+    _setCommTimeouts();
   }
 
   /// [readBytes] is an [async] function
   Future<Uint8List> readBytes(int bytesSize) async {
     final lpBuffer = calloc<Uint16>(bytesSize);
     ReadFile(handler!, lpBuffer, bytesSize, _bytesRead, _over);
-    return lpBuffer.asTypedList(bytesSize).buffer.asUint8List();
+
+    /// Uint16 need to be casted for real Uint8 data
+    return lpBuffer.cast<Uint8>().asTypedList(_bytesRead.value);
   }
 
   /// [_getRegistryKeyValue] will open RegistryKey in Serial Path.
@@ -187,7 +269,7 @@ class SerialPort {
         case ERROR_NO_MORE_ITEMS:
           return null;
         default:
-          throw Exception("unknown error!");
+          throw Exception("Unknown error!");
       }
     } finally {
       /// free all pointer

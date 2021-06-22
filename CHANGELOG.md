@@ -1,3 +1,11 @@
+## 0.0.7
+
+- make API more efficient
+- add more API
+- Compatible with new win32 package API
+- fix bugs
+- add more doc
+
 ## 0.0.6
 
 - fix bugs

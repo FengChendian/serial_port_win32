@@ -23,9 +23,11 @@ final port = SerialPort("COM5");
 ### Set parameters
 
 ```dart
-port.BaudRate = 115200;
+port.BaudRate = CBR_115200;
 port.ByteSize = 8;
-port.StopBits = 0;
+port.StopBits = ONESTOPBIT;
+port.Parity = NOPARITY;
+port.ReadIntervalTimeout = 10;
 /// and so on, parameters like win32.
 ```
 
@@ -35,13 +37,19 @@ port.StopBits = 0;
 print(await ports.readBytes(2));
 ```
 
+### Get Port Connection Status
+
+```dart
+port.isOpened == false;
+```
+
 ### Close Serial Port
 
 ```dart
 port.close();
 ```
 
-### Full Example
+### Small Example
 
 ```dart
 import 'package:serial_port_win32/src/serial_port.dart';
@@ -51,8 +59,8 @@ void main() {
     print(ports);
     if(ports.isNotEmpty){
       var port = SerialPort(ports[0]);
-      port.BaudRate = 115200;
-      port.StopBits = 1;
+      port.BaudRate = CBR_115200;
+      port.StopBits = ONESTOPBIT;
       port.close();
     }
 }
