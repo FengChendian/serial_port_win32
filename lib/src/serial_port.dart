@@ -295,6 +295,24 @@ class SerialPort {
     }
   }
 
+  /// [writeBytesFromUint8List] will write Uint8List directly, please ensure the last
+  /// of list is 0 terminator if you want to convert it to char.
+  bool writeBytesFromUint8List(Uint8List uint8list) {
+    final lpBuffer = uint8list.allocatePointer();
+    final lpNumberOfBytesWritten = calloc<DWORD>();
+    try {
+      if (WriteFile(handler!, lpBuffer, uint8list.length,
+              lpNumberOfBytesWritten, nullptr) !=
+          TRUE) {
+        return false;
+      }
+      return true;
+    } finally {
+      free(lpBuffer);
+      free(lpNumberOfBytesWritten);
+    }
+  }
+
   /// [_getRegistryKeyValue] will open RegistryKey in Serial Path.
   static int _getRegistryKeyValue() {
     final hKeyPtr = calloc<IntPtr>();

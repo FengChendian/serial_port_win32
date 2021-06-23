@@ -17,7 +17,10 @@ print(ports);
 ### Create Serial Port
 
 ```dart
-final port = SerialPort("COM5");
+final port = SerialPort("COM5", openNow: false);
+// port.open()
+port.openWithSettings(BaudRate: CBR_115200);
+// final port = SerialPort("COM5"); /// auto open with default settings
 ```
 
 ### Set parameters
@@ -39,9 +42,18 @@ print(await ports.readBytes(2));
 
 ### Write
 
+#### Write String
+
 ```dart
 String buffer = "hello";
-writeBytesFromString(buffer);
+port.writeBytesFromString(buffer);
+```
+
+#### Write Uint8List
+
+```dart
+final uint8_data = Uint8List.fromList([1, 2, 3, 4, 5, 6]);
+print(port.writeBytesFromUint8List(uint8_data));
 ```
 
 ### Get Port Connection Status
