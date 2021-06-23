@@ -1,3 +1,8 @@
+## 0.1.0
+
+- add more write API
+- revise doc
+
 ## 0.0.9
 
 - add write API
