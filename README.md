@@ -37,6 +37,13 @@ port.ReadIntervalTimeout = 10;
 print(await ports.readBytes(2));
 ```
 
+### Write
+
+```dart
+String buffer = "hello";
+writeBytesFromString(buffer);
+```
+
 ### Get Port Connection Status
 
 ```dart

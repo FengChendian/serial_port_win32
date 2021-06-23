@@ -276,6 +276,25 @@ class SerialPort {
     return lpBuffer.cast<Uint8>().asTypedList(_bytesRead.value);
   }
 
+  /// [writeBytesFromString] will convert String to ANSI Code corresponding to char
+  /// Serial devices can receive ANSI code
+  /// if you write "hello" in String, device will get "hello\0" with "\0" automatically.
+  bool writeBytesFromString(String buffer) {
+    final lpBuffer = buffer.toANSI();
+    final lpNumberOfBytesWritten = calloc<DWORD>();
+    try {
+      if (WriteFile(handler!, lpBuffer, lpBuffer.length + 1,
+              lpNumberOfBytesWritten, nullptr) !=
+          TRUE) {
+        return false;
+      }
+      return true;
+    } finally {
+      free(lpBuffer);
+      free(lpNumberOfBytesWritten);
+    }
+  }
+
   /// [_getRegistryKeyValue] will open RegistryKey in Serial Path.
   static int _getRegistryKeyValue() {
     final hKeyPtr = calloc<IntPtr>();

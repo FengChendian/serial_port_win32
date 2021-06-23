@@ -1,3 +1,8 @@
+## 0.0.9
+
+- add write API
+- add more doc
+
 ## 0.0.8
 
 - remove `reopenPort` function, instead by `open()`
