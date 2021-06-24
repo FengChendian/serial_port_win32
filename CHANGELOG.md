@@ -1,3 +1,7 @@
+## 0.1.1
+
+- add `closeOnListen()` API
+
 ## 0.1.0
 
 - add more write API
