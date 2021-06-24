@@ -17,7 +17,7 @@ print(ports);
 ### Create Serial Port
 
 ```dart
-final port = SerialPort("COM5", openNow: false);
+final port = SerialPort("COM5", openNow: false, ByteSize: 8);
 // port.open()
 port.openWithSettings(BaudRate: CBR_115200);
 // final port = SerialPort("COM5"); /// auto open with default settings
@@ -64,8 +64,25 @@ port.isOpened == false;
 
 ### Close Serial Port
 
+#### Close Without Listen
+
 ```dart
 port.close();
+```
+
+#### Close On Listen
+
+```dart
+port.closeOnListen(
+  onListen: () => print(port.isOpened),
+)
+  ..onError((err) {
+    print(err);
+  })
+  ..onDone(() {
+    print("is closed");
+    print(port.isOpened);
+  });
 ```
 
 ### Small Example

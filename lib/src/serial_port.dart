@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ffi';
 import 'dart:typed_data';
 import 'package:win32/win32.dart';
@@ -409,5 +410,29 @@ class SerialPort {
   void close() {
     CloseHandle(handler!);
     _isOpened = false;
+  }
+
+  /// [closeOnListen[ let you can close onListen function before closing port and
+  /// using onError or onDone when port is closed.
+  StreamSubscription closeOnListen({required Function()? onListen}) {
+    ///定义一个Controller
+    final _closeController = StreamController<String>(
+      onListen: onListen,
+    );
+    final _closeSink = _closeController.sink;
+
+    ///事件订阅对象
+    StreamSubscription _closeSubscription =
+        _closeController.stream.listen((event) {});
+    try {
+      CloseHandle(handler!);
+      _isOpened = false;
+    } catch (e) {
+      _closeSink.addError(e.toString());
+    } finally {
+      _closeSink.close();
+      _closeController.close();
+    }
+    return _closeSubscription;
   }
 }
