@@ -271,10 +271,51 @@ class SerialPort {
   /// [readBytes] is an [async] function
   Future<Uint8List> readBytes(int bytesSize) async {
     final lpBuffer = calloc<Uint16>(bytesSize);
-    ReadFile(handler!, lpBuffer, bytesSize, _bytesRead, _over);
+    Uint8List uint8list;
 
-    /// Uint16 need to be casted for real Uint8 data
-    return lpBuffer.cast<Uint8>().asTypedList(_bytesRead.value);
+    try {
+      ReadFile(handler!, lpBuffer, bytesSize, _bytesRead, _over);
+    } finally {
+      /// Uint16 need to be casted for real Uint8 data
+      uint8list = lpBuffer.cast<Uint8>().asTypedList(_bytesRead.value);
+      free(lpBuffer);
+    }
+
+    return uint8list;
+  }
+
+  /// [readBytesOnListen] can listen operation when function was called.
+  /// It returns a StreamSubscription value
+  /// you can use onData to get data, use onListen and onError and soon.
+  Future<StreamSubscription> readBytesOnListen(
+      int bytesSize, Function(Uint8List value) onData,
+      {required Function() onListen}) async {
+    final lpBuffer = calloc<Uint16>(bytesSize);
+    Uint8List uint8list;
+
+    final _closeController = StreamController<String>(
+      onListen: onListen,
+    );
+    final _closeSink = _closeController.sink;
+
+    ///事件订阅对象
+    StreamSubscription _closeSubscription =
+        _closeController.stream.listen((event) {});
+
+    try {
+      ReadFile(handler!, lpBuffer, bytesSize, _bytesRead, _over);
+    } catch (e) {
+      _closeSink.addError(e.toString());
+    } finally {
+      /// Uint16 need to be casted for real Uint8 data
+      uint8list = lpBuffer.cast<Uint8>().asTypedList(_bytesRead.value);
+      onData(uint8list);
+      free(lpBuffer);
+      _closeController.close();
+      _closeSink.close();
+    }
+
+    return _closeSubscription;
   }
 
   /// [writeBytesFromString] will convert String to ANSI Code corresponding to char
@@ -414,7 +455,7 @@ class SerialPort {
 
   /// [closeOnListen[ let you can close onListen function before closing port and
   /// using onError or onDone when port is closed.
-  StreamSubscription closeOnListen({required Function()? onListen}) {
+  StreamSubscription closeOnListen({required Function() onListen}) {
     ///定义一个Controller
     final _closeController = StreamController<String>(
       onListen: onListen,

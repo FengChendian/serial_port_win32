@@ -1,3 +1,7 @@
+## 0.1.2
+
+- add `readOnListen` API
+
 ## 0.1.1
 
 - add `closeOnListen()` API
