@@ -29,10 +29,17 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   var ports = <String>[];
+  late SerialPort port;
 
+  String data = '';
   void _getPorts() {
     ports = SerialPort.getAvailablePorts();
-    print(ports);
+    if (ports.isNotEmpty){
+      port = SerialPort(ports[0]);
+      port.readBytesOnListen(8, (value) {data = value.toString(); setState(() {
+
+      });});
+    }
     setState(() {
 
     });
@@ -40,6 +47,7 @@ class _MyHomePageState extends State<MyHomePage> {
     //   ports = SerialPort.getAvailablePorts();
     // });
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +68,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ports.toString(),
               style: Theme.of(context).textTheme.headline4,
             ),
+            Text(data),
           ],
         ),
       ),

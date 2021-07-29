@@ -1,3 +1,8 @@
+## 0.2.2
+
+- change `readBytesOnListen` API
+- add `readBytesOnce`, `openStatus` ...
+
 ## 0.1.2
 
 - add `readOnListen` API

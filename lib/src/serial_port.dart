@@ -35,6 +35,9 @@ class SerialPort {
 
   static final Map<String, SerialPort> _cache = <String, SerialPort>{};
 
+  /// for read loop
+  Timer? _timer;
+
   /// reusable instance using [factory]
   factory SerialPort(
     String portName, {
@@ -205,6 +208,11 @@ class SerialPort {
     _setCommState();
   }
 
+  /// change [isOpened] value if necessary
+  set openStatus(bool status) {
+    _isOpened = status;
+  }
+
   /// [ReadIntervalTimeout]
   ///
   /// The maximum time allowed to elapse before the arrival of the next byte on the communications line,
@@ -268,8 +276,8 @@ class SerialPort {
     _setCommTimeouts();
   }
 
-  /// [readBytes] is an [async] function
-  Future<Uint8List> readBytes(int bytesSize) async {
+  /// [_read] is a fundamental read function/
+  Future<Uint8List> _read(int bytesSize) async {
     final lpBuffer = calloc<Uint16>(bytesSize);
     Uint8List uint8list;
 
@@ -284,38 +292,40 @@ class SerialPort {
     return uint8list;
   }
 
-  /// [readBytesOnListen] can listen operation when function was called.
-  /// It returns a StreamSubscription value
-  /// you can use onData to get data, use onListen and onError and soon.
-  Future<StreamSubscription> readBytesOnListen(
-      int bytesSize, Function(Uint8List value) onData,
-      {required Function() onListen}) async {
-    final lpBuffer = calloc<Uint16>(bytesSize);
-    Uint8List uint8list;
-
-    final _closeController = StreamController<String>(
-      onListen: onListen,
-    );
-    final _closeSink = _closeController.sink;
-
-    ///事件订阅对象
-    StreamSubscription _closeSubscription =
-        _closeController.stream.listen((event) {});
-
-    try {
-      ReadFile(handler!, lpBuffer, bytesSize, _bytesRead, _over);
-    } catch (e) {
-      _closeSink.addError(e.toString());
-    } finally {
-      /// Uint16 need to be casted for real Uint8 data
-      uint8list = lpBuffer.cast<Uint8>().asTypedList(_bytesRead.value);
-      onData(uint8list);
-      free(lpBuffer);
-      _closeController.close();
-      _closeSink.close();
+  /// [readBytesOnce] read data only once.
+  Future<Uint8List> readBytesOnce(int bytesSize) async {
+    if (_timer != null) {
+      throw Exception("You need to remover the read listener!");
     }
+    return _read(bytesSize);
+  }
 
-    return _closeSubscription;
+  /// [readBytesOnListen] can constantly listen data, you can use [onData] to get data.
+  void readBytesOnListen(int bytesSize, Function(Uint8List value) onData,
+      {void onBefore()?, Duration? duration}) async {
+    _cancelTimer();
+    if (onBefore != null) {
+      onBefore();
+    }
+    _timer = Timer.periodic(duration ?? Duration(milliseconds: 20), (timer) {
+      _read(bytesSize).then((value) {
+        if (value.isEmpty) {
+          return;
+        }
+        onData(value);
+      });
+    });
+  }
+
+  /// [removeReadListener] will remove listener in [readBytesOnlisten]
+  void removeReadListener() {
+    _cancelTimer();
+  }
+
+  void _cancelTimer() {
+    if (_timer != null) {
+      _timer!.cancel();
+    }
   }
 
   /// [writeBytesFromString] will convert String to ANSI Code corresponding to char
