@@ -38,7 +38,6 @@ port.ReadIntervalTimeout = 10;
 
 ```dart
 port.readBytesOnListen(8, (value) => print(value));
-port.readBytesOnceOnListen(8, (value) => print(value));
 ```
 
 ### Write

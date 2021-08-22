@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:typed_data';
+import 'package:computer/computer.dart';
 import 'package:serial_port_win32/src/utils.dart';
 import 'package:win32/win32.dart';
 import 'package:ffi/ffi.dart';
-import 'package:worker_manager/worker_manager.dart';
 
 class SerialPort {
   /// [portName] like COM3
@@ -39,6 +39,9 @@ class SerialPort {
 
   /// EventMask
   Pointer<DWORD> _dwCommEvent = calloc<DWORD>();
+
+  /// [_computer] is an isolate pool
+  final _computer = Computer();
 
   /// reusable instance using [factory]
   factory SerialPort(
@@ -299,25 +302,6 @@ class SerialPort {
     return _read(bytesSize);
   }
 
-  /// [readBytesOnceOnListen] can listen data, you can use [onData] to get data.
-  void readBytesOnceOnListen(int bytesSize, Function(Uint8List value) onData,
-      {void onBefore()?}) async {
-    Uint8List uint8list;
-    if (SetCommMask(handler!, 0x0001) == 0) {
-      throw Exception("SetCommMask EV_RXCHAR failed");
-    }
-    if (onBefore != null) {
-      onBefore();
-    }
-
-    if (WaitCommEvent(handler!, _dwCommEvent, nullptr) == 1) {
-      uint8list = await _read(bytesSize);
-      if (uint8list.isNotEmpty) {
-        onData(uint8list);
-      }
-    }
-  }
-
   /// [readBytesOnListen] can constantly listen data, you can use [onData] to get data.
   void readBytesOnListen(int bytesSize, Function(Uint8List value) onData,
       {void onBefore()?}) async {
@@ -328,9 +312,9 @@ class SerialPort {
     if (onBefore != null) {
       onBefore();
     }
-    await Executor().warmUp();
+    await _computer.turnOn();
     while (true) {
-      if (await Executor().execute(arg1: handler, fun1: wait) == 1) {
+      if (await _computer.compute(wait, param: handler) == 1) {
         uint8list = await _read(bytesSize);
         if (uint8list.isNotEmpty) {
           onData(uint8list);
@@ -470,7 +454,8 @@ class SerialPort {
 
   /// [close] port which was opened
   void close() {
-    Executor().execute().cancel();
+    SetCommMask(handler!, NULL);
+    _computer.turnOff();
     CloseHandle(handler!);
     _isOpened = false;
   }

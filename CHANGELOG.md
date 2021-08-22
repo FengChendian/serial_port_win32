@@ -1,3 +1,7 @@
+## 0.4.0
+
+- fix ui blocking
+
 ## 0.3.1
 
 - add [readBytesOnceOnListen] function
