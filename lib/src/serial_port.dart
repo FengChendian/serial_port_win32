@@ -297,6 +297,25 @@ class SerialPort {
     return _read(bytesSize);
   }
 
+  /// [readBytesOnceOnListen] can listen data, you can use [onData] to get data.
+  void readBytesOnceOnListen(int bytesSize, Function(Uint8List value) onData,
+      {void onBefore()?}) async {
+    Uint8List uint8list;
+    if (SetCommMask(handler!, 0x0001) == 0) {
+      throw Exception("SetCommMask EV_RXCHAR failed");
+    }
+    if (onBefore != null) {
+      onBefore();
+    }
+
+    if (WaitCommEvent(handler!, _dwCommEvent, nullptr) == 1) {
+      uint8list = await _read(bytesSize);
+      if (uint8list.isNotEmpty) {
+        onData(uint8list);
+      }
+    }
+  }
+
   /// [readBytesOnListen] can constantly listen data, you can use [onData] to get data.
   void readBytesOnListen(int bytesSize, Function(Uint8List value) onData,
       {void onBefore()?}) async {

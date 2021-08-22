@@ -1,3 +1,7 @@
+## 0.3.1
+
+- add [readBytesOnceOnListen] function
+
 ## 0.3.0
 
 - using waitEvent to listen port
