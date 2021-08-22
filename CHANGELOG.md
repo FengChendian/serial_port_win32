@@ -1,3 +1,7 @@
+## 0.4.1
+
+- fix `close` bug
+
 ## 0.4.0
 
 - fix ui blocking

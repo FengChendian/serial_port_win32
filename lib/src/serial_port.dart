@@ -319,6 +319,8 @@ class SerialPort {
         if (uint8list.isNotEmpty) {
           onData(uint8list);
         }
+      } else {
+        break;
       }
     }
   }
