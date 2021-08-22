@@ -1,3 +1,7 @@
+## 0.3.0
+
+- using waitEvent to listen port
+
 ## 0.2.2
 
 - change `readBytesOnListen` API

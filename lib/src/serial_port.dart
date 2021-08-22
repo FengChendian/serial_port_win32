@@ -35,8 +35,8 @@ class SerialPort {
 
   static final Map<String, SerialPort> _cache = <String, SerialPort>{};
 
-  /// for read loop
-  Timer? _timer;
+  /// EventMask
+  Pointer<DWORD> _dwCommEvent = calloc<DWORD>();
 
   /// reusable instance using [factory]
   factory SerialPort(
@@ -294,37 +294,26 @@ class SerialPort {
 
   /// [readBytesOnce] read data only once.
   Future<Uint8List> readBytesOnce(int bytesSize) async {
-    if (_timer != null) {
-      throw Exception("You need to remover the read listener!");
-    }
     return _read(bytesSize);
   }
 
   /// [readBytesOnListen] can constantly listen data, you can use [onData] to get data.
   void readBytesOnListen(int bytesSize, Function(Uint8List value) onData,
-      {void onBefore()?, Duration? duration}) async {
-    _cancelTimer();
+      {void onBefore()?}) async {
+    Uint8List uint8list;
+    if (SetCommMask(handler!, 0x0001) == 0) {
+      throw Exception("SetCommMask EV_RXCHAR failed");
+    }
     if (onBefore != null) {
       onBefore();
     }
-    _timer = Timer.periodic(duration ?? Duration(milliseconds: 20), (timer) {
-      _read(bytesSize).then((value) {
-        if (value.isEmpty) {
-          return;
+    while (true) {
+      if (WaitCommEvent(handler!, _dwCommEvent, nullptr) == 1) {
+        uint8list = await _read(bytesSize);
+        if (uint8list.isNotEmpty) {
+          onData(uint8list);
         }
-        onData(value);
-      });
-    });
-  }
-
-  /// [removeReadListener] will remove listener in [readBytesOnlisten]
-  void removeReadListener() {
-    _cancelTimer();
-  }
-
-  void _cancelTimer() {
-    if (_timer != null) {
-      _timer!.cancel();
+      }
     }
   }
 
