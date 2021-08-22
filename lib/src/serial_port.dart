@@ -470,6 +470,7 @@ class SerialPort {
 
   /// [close] port which was opened
   void close() {
+    Executor().execute().cancel();
     CloseHandle(handler!);
     _isOpened = false;
   }
