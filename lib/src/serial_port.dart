@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:typed_data';
+import 'package:serial_port_win32/src/utils.dart';
 import 'package:win32/win32.dart';
 import 'package:ffi/ffi.dart';
+import 'package:worker_manager/worker_manager.dart';
 
 class SerialPort {
   /// [portName] like COM3
@@ -326,8 +328,9 @@ class SerialPort {
     if (onBefore != null) {
       onBefore();
     }
+    await Executor().warmUp();
     while (true) {
-      if (WaitCommEvent(handler!, _dwCommEvent, nullptr) == 1) {
+      if (await Executor().execute(arg1: handler, fun1: wait) == 1) {
         uint8list = await _read(bytesSize);
         if (uint8list.isNotEmpty) {
           onData(uint8list);

@@ -13,6 +13,7 @@ dependencies:
   flutter:
     sdk: flutter
   win32: ^2.2.5
+  worker_manager:
 
 dev_dependencies:
   flutter_test:
