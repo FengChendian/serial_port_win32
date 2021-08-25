@@ -38,6 +38,18 @@ port.ReadIntervalTimeout = 10;
 
 ```dart
 port.readBytesOnListen(8, (value) => print(value));
+// or
+port.readOnListenFunction = (value) {
+  print(value);
+};
+// port.readOnListenFunction = (value) {
+//   print(value);
+// };
+// Future.delayed(Duration(seconds: 5)).then((value) {
+//   port.writeBytesFromString('close');
+//   sleep(Duration(seconds: 1));
+//   port.close();
+// });
 ```
 
 ### Write

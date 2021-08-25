@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:typed_data';
-import 'package:computer/computer.dart';
-import 'package:serial_port_win32/src/utils.dart';
 import 'package:win32/win32.dart';
 import 'package:ffi/ffi.dart';
 
@@ -27,6 +25,15 @@ class SerialPort {
 
   Pointer<OVERLAPPED> _over = calloc<OVERLAPPED>();
 
+  /// EventMask
+  Pointer<DWORD> _dwCommEvent = calloc<DWORD>();
+
+  /// erros
+  final _errors = calloc<DWORD>();
+
+  /// staus
+  final _status = calloc<COMSTAT>();
+
   /// [_keyPath] is registry path which will be oepned
   static final _keyPath = TEXT("HARDWARE\\DEVICEMAP\\SERIALCOMM");
 
@@ -37,68 +44,87 @@ class SerialPort {
 
   static final Map<String, SerialPort> _cache = <String, SerialPort>{};
 
-  /// EventMask
-  Pointer<DWORD> _dwCommEvent = calloc<DWORD>();
+  /// stream data
+  late Stream<Uint8List> _readStream;
 
-  /// [_computer] is an isolate pool
-  final _computer = Computer();
+  /// [readOnListenFunction] define what  to do when data comming
+  Function(Uint8List value) readOnListenFunction = (value) {};
+
+  /// [readOnBeforeFunction] define what  to do when data comming
+  Function() readOnBeforeFunction = () {};
+
+  /// read data which has size [_readBytesSize]
+  int _readBytesSize = 1;
+
+  /// using [readBytesSize] setting [_readBytesSize]
+  set readBytesSize(int value) {
+    _readBytesSize = value;
+  }
+
+  /// [EV_RXCHAR]
+  /// A character was received and placed in the input buffer.
+  static const int EV_RXCHAR = 0x0001;
+
+  /// [ERROR_IO_PENDING]
+  /// Overlapped I/O operation is in progress.
+  static const int ERROR_IO_PENDING = 997;
 
   /// reusable instance using [factory]
   factory SerialPort(
-    String portName, {
-    // ignore: non_constant_identifier_names
-    int BaudRate = CBR_115200,
-    // ignore: non_constant_identifier_names
-    int Parity = NOPARITY,
-    // ignore: non_constant_identifier_names
-    int StopBits = ONESTOPBIT,
-    // ignore: non_constant_identifier_names
-    int ByteSize = 8,
-    // ignore: non_constant_identifier_names
-    int ReadIntervalTimeout = 10,
-    // ignore: non_constant_identifier_names
-    int ReadTotalTimeoutConstant = 1,
-    // ignore: non_constant_identifier_names
-    int ReadTotalTimeoutMultiplier = 0,
+      String portName, {
+        // ignore: non_constant_identifier_names
+        int BaudRate = CBR_115200,
+        // ignore: non_constant_identifier_names
+        int Parity = NOPARITY,
+        // ignore: non_constant_identifier_names
+        int StopBits = ONESTOPBIT,
+        // ignore: non_constant_identifier_names
+        int ByteSize = 8,
+        // ignore: non_constant_identifier_names
+        int ReadIntervalTimeout = 10,
+        // ignore: non_constant_identifier_names
+        int ReadTotalTimeoutConstant = 1,
+        // ignore: non_constant_identifier_names
+        int ReadTotalTimeoutMultiplier = 0,
 
-    /// if you want open port when create instance, set [openNow] true
-    bool openNow = true,
-  }) {
+        /// if you want open port when create instance, set [openNow] true
+        bool openNow = true,
+      }) {
     return _cache.putIfAbsent(
         portName,
-        () => SerialPort._internal(
-              portName,
-              TEXT(portName),
-              BaudRate: BaudRate,
-              Parity: Parity,
-              StopBits: StopBits,
-              ByteSize: ByteSize,
-              ReadIntervalTimeout: ReadIntervalTimeout,
-              ReadTotalTimeoutConstant: ReadTotalTimeoutConstant,
-              ReadTotalTimeoutMultiplier: ReadTotalTimeoutMultiplier,
-              openNow: openNow,
-            ));
+            () => SerialPort._internal(
+          portName,
+          TEXT(portName),
+          BaudRate: BaudRate,
+          Parity: Parity,
+          StopBits: StopBits,
+          ByteSize: ByteSize,
+          ReadIntervalTimeout: ReadIntervalTimeout,
+          ReadTotalTimeoutConstant: ReadTotalTimeoutConstant,
+          ReadTotalTimeoutMultiplier: ReadTotalTimeoutMultiplier,
+          openNow: openNow,
+        ));
   }
 
   SerialPort._internal(
-    this.portName,
-    this._portNameUtf16, {
-    // ignore: non_constant_identifier_names
-    required int BaudRate,
-    // ignore: non_constant_identifier_names
-    required int Parity,
-    // ignore: non_constant_identifier_names
-    required int StopBits,
-    // ignore: non_constant_identifier_names
-    required int ByteSize,
-    // ignore: non_constant_identifier_names
-    required int ReadIntervalTimeout,
-    // ignore: non_constant_identifier_names
-    required int ReadTotalTimeoutConstant,
-    // ignore: non_constant_identifier_names
-    required int ReadTotalTimeoutMultiplier,
-    required bool openNow,
-  }) {
+      this.portName,
+      this._portNameUtf16, {
+        // ignore: non_constant_identifier_names
+        required int BaudRate,
+        // ignore: non_constant_identifier_names
+        required int Parity,
+        // ignore: non_constant_identifier_names
+        required int StopBits,
+        // ignore: non_constant_identifier_names
+        required int ByteSize,
+        // ignore: non_constant_identifier_names
+        required int ReadIntervalTimeout,
+        // ignore: non_constant_identifier_names
+        required int ReadTotalTimeoutConstant,
+        // ignore: non_constant_identifier_names
+        required int ReadTotalTimeoutMultiplier,
+        required bool openNow,
+      }) {
     dcb
       ..ref.BaudRate = BaudRate
       ..ref.Parity = Parity
@@ -117,7 +143,7 @@ class SerialPort {
   void open() {
     if (_isOpened == false) {
       handler = CreateFile(_portNameUtf16, GENERIC_READ | GENERIC_WRITE, 0,
-          nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+          nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
 
       if (handler == INVALID_HANDLE_VALUE) {
         final lastError = GetLastError();
@@ -133,8 +159,52 @@ class SerialPort {
       _setCommTimeouts();
 
       _isOpened = true;
+
+      if (SetCommMask(handler!, EV_RXCHAR) == 0) {
+        throw Exception('SetCommMask error');
+      }
+      _createEvent();
+
+      _readStream = _lookUpEvent(Duration(milliseconds: 10));
+      _readStream.listen((event) {
+        readOnListenFunction(event);
+      });
     } else {
       throw Exception('Port is opened');
+    }
+  }
+
+  /// look up I/O event and read data using stream
+  Stream<Uint8List> _lookUpEvent(Duration interval) async* {
+    int event = 0;
+    int readResult = 0;
+    Uint8List data;
+    PurgeComm(handler!, PURGE_RXCLEAR | PURGE_TXCLEAR);
+    while (true) {
+      await Future.delayed(interval);
+      event = WaitCommEvent(handler!, _dwCommEvent, _over);
+      if (event == TRUE) {
+        ClearCommError(handler!, _errors, _status);
+        data = await _read(_readBytesSize);
+        if (data.isNotEmpty) {
+          yield data;
+        }
+      } else {
+        if (GetLastError() == ERROR_IO_PENDING) {
+          /// WaitForSingleObject is often timeout, so remove it
+          // readResult = WaitForSingleObject(_over.ref.hEvent, 500);
+          // print(readResult);
+          // if (readResult == 0) {
+          ClearCommError(handler!, _errors, _status);
+          data = await _read(_readBytesSize);
+          if (data.isNotEmpty) {
+            yield data;
+          }
+          // } else {
+          //   continue;
+          // }
+        }
+      }
     }
   }
 
@@ -181,6 +251,15 @@ class SerialPort {
     if (SetCommTimeouts(handler!, commTimeouts) == FALSE) {
       throw Exception('SetCommTimeouts error');
     }
+  }
+
+  /// CreateEvent for overlapped I/O
+  /// Initialize the rest of the OVERLAPPED structure
+  void _createEvent() {
+    _over.ref.hEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    _over
+      ..ref.Internal = 0
+      ..ref.InternalHigh = 0;
   }
 
   // set serial port [BaudRate]
@@ -287,6 +366,7 @@ class SerialPort {
     Uint8List uint8list;
 
     try {
+      readOnBeforeFunction();
       ReadFile(handler!, lpBuffer, bytesSize, _bytesRead, _over);
     } finally {
       /// Uint16 need to be casted for real Uint8 data
@@ -304,25 +384,10 @@ class SerialPort {
 
   /// [readBytesOnListen] can constantly listen data, you can use [onData] to get data.
   void readBytesOnListen(int bytesSize, Function(Uint8List value) onData,
-      {void onBefore()?}) async {
-    Uint8List uint8list;
-    if (SetCommMask(handler!, 0x0001) == 0) {
-      throw Exception("SetCommMask EV_RXCHAR failed");
-    }
-    if (onBefore != null) {
-      onBefore();
-    }
-    await _computer.turnOn();
-    while (true) {
-      if (await _computer.compute(wait, param: handler) == 1) {
-        uint8list = await _read(bytesSize);
-        if (uint8list.isNotEmpty) {
-          onData(uint8list);
-        }
-      } else {
-        break;
-      }
-    }
+      {void onBefore()?}) {
+    _readBytesSize = bytesSize;
+    readOnListenFunction = onData;
+    readOnBeforeFunction = onBefore ?? () {};
   }
 
   /// [writeBytesFromString] will convert String to ANSI Code corresponding to char
@@ -333,7 +398,7 @@ class SerialPort {
     final lpNumberOfBytesWritten = calloc<DWORD>();
     try {
       if (WriteFile(handler!, lpBuffer, lpBuffer.length + 1,
-              lpNumberOfBytesWritten, nullptr) !=
+          lpNumberOfBytesWritten, _over) !=
           TRUE) {
         return false;
       }
@@ -351,7 +416,7 @@ class SerialPort {
     final lpNumberOfBytesWritten = calloc<DWORD>();
     try {
       if (WriteFile(handler!, lpBuffer, uint8list.length,
-              lpNumberOfBytesWritten, nullptr) !=
+          lpNumberOfBytesWritten, _over) !=
           TRUE) {
         return false;
       }
@@ -456,8 +521,6 @@ class SerialPort {
 
   /// [close] port which was opened
   void close() {
-    SetCommMask(handler!, NULL);
-    _computer.turnOff();
     CloseHandle(handler!);
     _isOpened = false;
   }
@@ -473,7 +536,7 @@ class SerialPort {
 
     ///事件订阅对象
     StreamSubscription _closeSubscription =
-        _closeController.stream.listen((event) {});
+    _closeController.stream.listen((event) {});
     try {
       CloseHandle(handler!);
       _isOpened = false;

@@ -1,3 +1,11 @@
+## 0.4.2
+
+- using overlapped mode
+- streaming reading data
+- add `readOnBeforeFunction`
+- add `readOnListenFunction`
+- bug fixed
+
 ## 0.4.1
 
 - fix `close` bug
