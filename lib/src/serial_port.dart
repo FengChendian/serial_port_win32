@@ -182,7 +182,7 @@ class SerialPort {
     while (true) {
       await Future.delayed(interval);
       event = WaitCommEvent(handler!, _dwCommEvent, _over);
-      if (event == TRUE) {
+      if (event != 0) {
         ClearCommError(handler!, _errors, _status);
         data = await _read(_readBytesSize);
         if (data.isNotEmpty) {
@@ -191,17 +191,16 @@ class SerialPort {
       } else {
         if (GetLastError() == ERROR_IO_PENDING) {
           /// WaitForSingleObject is often timeout, so remove it
-          // readResult = WaitForSingleObject(_over.ref.hEvent, 500);
-          // print(readResult);
-          // if (readResult == 0) {
+          // if (WaitForSingleObject(_over.ref.hEvent, 500) == 0) {
           ClearCommError(handler!, _errors, _status);
-          data = await _read(_readBytesSize);
+          data = await _read(_status.ref.cbInQue);
+
           if (data.isNotEmpty) {
             yield data;
           }
-          // } else {
-          //   continue;
           // }
+          // ResetEvent(_over.ref.hEvent);
+          // _over.ref.hEvent = 89;
         }
       }
     }

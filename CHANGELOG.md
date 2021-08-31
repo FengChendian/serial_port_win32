@@ -1,3 +1,7 @@
+## 0.4.5
+
+- bugs fixed
+
 ## 0.4.4
 
 - fix read bug
