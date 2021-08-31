@@ -1,3 +1,8 @@
+## 0.4.7
+
+- using WaitingForSingleObject Function
+- adaptive read size if InQue < readByteSize
+
 ## 0.4.6
 
 - always read byteSize which was set

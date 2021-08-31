@@ -184,23 +184,30 @@ class SerialPort {
       event = WaitCommEvent(handler!, _dwCommEvent, _over);
       if (event != 0) {
         ClearCommError(handler!, _errors, _status);
-        data = await _read(_readBytesSize);
+        if (_status.ref.cbInQue < _readBytesSize) {
+          data = await _read(_status.ref.cbInQue);
+        } else {
+          data = await _read(_readBytesSize);
+        }
         if (data.isNotEmpty) {
           yield data;
         }
       } else {
         if (GetLastError() == ERROR_IO_PENDING) {
-          /// WaitForSingleObject is often timeout, so remove it
-          // if (WaitForSingleObject(_over.ref.hEvent, 500) == 0) {
-          ClearCommError(handler!, _errors, _status);
-          data = await _read(_readBytesSize);
+          if (WaitForSingleObject(_over.ref.hEvent, 500) == 0) {
+            ClearCommError(handler!, _errors, _status);
+            print("object");
+            if (_status.ref.cbInQue < _readBytesSize) {
+              data = await _read(_status.ref.cbInQue);
+            } else {
+              data = await _read(_readBytesSize);
+            }
 
-          if (data.isNotEmpty) {
-            yield data;
+            if (data.isNotEmpty) {
+              yield data;
+            }
           }
-          // }
-          // ResetEvent(_over.ref.hEvent);
-          // _over.ref.hEvent = 89;
+          ResetEvent(_over.ref.hEvent);
         }
       }
     }
@@ -254,7 +261,7 @@ class SerialPort {
   /// CreateEvent for overlapped I/O
   /// Initialize the rest of the OVERLAPPED structure
   void _createEvent() {
-    _over.ref.hEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    _over.ref.hEvent = CreateEvent(nullptr, TRUE, FALSE, nullptr);
     _over
       ..ref.Internal = 0
       ..ref.InternalHigh = 0;
