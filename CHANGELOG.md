@@ -1,3 +1,7 @@
+## 0.4.3
+
+- fix read bug
+
 ## 0.4.2
 
 - using overlapped mode

@@ -71,60 +71,60 @@ class SerialPort {
 
   /// reusable instance using [factory]
   factory SerialPort(
-      String portName, {
-        // ignore: non_constant_identifier_names
-        int BaudRate = CBR_115200,
-        // ignore: non_constant_identifier_names
-        int Parity = NOPARITY,
-        // ignore: non_constant_identifier_names
-        int StopBits = ONESTOPBIT,
-        // ignore: non_constant_identifier_names
-        int ByteSize = 8,
-        // ignore: non_constant_identifier_names
-        int ReadIntervalTimeout = 10,
-        // ignore: non_constant_identifier_names
-        int ReadTotalTimeoutConstant = 1,
-        // ignore: non_constant_identifier_names
-        int ReadTotalTimeoutMultiplier = 0,
+    String portName, {
+    // ignore: non_constant_identifier_names
+    int BaudRate = CBR_115200,
+    // ignore: non_constant_identifier_names
+    int Parity = NOPARITY,
+    // ignore: non_constant_identifier_names
+    int StopBits = ONESTOPBIT,
+    // ignore: non_constant_identifier_names
+    int ByteSize = 8,
+    // ignore: non_constant_identifier_names
+    int ReadIntervalTimeout = 10,
+    // ignore: non_constant_identifier_names
+    int ReadTotalTimeoutConstant = 1,
+    // ignore: non_constant_identifier_names
+    int ReadTotalTimeoutMultiplier = 0,
 
-        /// if you want open port when create instance, set [openNow] true
-        bool openNow = true,
-      }) {
+    /// if you want open port when create instance, set [openNow] true
+    bool openNow = true,
+  }) {
     return _cache.putIfAbsent(
         portName,
-            () => SerialPort._internal(
-          portName,
-          TEXT(portName),
-          BaudRate: BaudRate,
-          Parity: Parity,
-          StopBits: StopBits,
-          ByteSize: ByteSize,
-          ReadIntervalTimeout: ReadIntervalTimeout,
-          ReadTotalTimeoutConstant: ReadTotalTimeoutConstant,
-          ReadTotalTimeoutMultiplier: ReadTotalTimeoutMultiplier,
-          openNow: openNow,
-        ));
+        () => SerialPort._internal(
+              portName,
+              TEXT(portName),
+              BaudRate: BaudRate,
+              Parity: Parity,
+              StopBits: StopBits,
+              ByteSize: ByteSize,
+              ReadIntervalTimeout: ReadIntervalTimeout,
+              ReadTotalTimeoutConstant: ReadTotalTimeoutConstant,
+              ReadTotalTimeoutMultiplier: ReadTotalTimeoutMultiplier,
+              openNow: openNow,
+            ));
   }
 
   SerialPort._internal(
-      this.portName,
-      this._portNameUtf16, {
-        // ignore: non_constant_identifier_names
-        required int BaudRate,
-        // ignore: non_constant_identifier_names
-        required int Parity,
-        // ignore: non_constant_identifier_names
-        required int StopBits,
-        // ignore: non_constant_identifier_names
-        required int ByteSize,
-        // ignore: non_constant_identifier_names
-        required int ReadIntervalTimeout,
-        // ignore: non_constant_identifier_names
-        required int ReadTotalTimeoutConstant,
-        // ignore: non_constant_identifier_names
-        required int ReadTotalTimeoutMultiplier,
-        required bool openNow,
-      }) {
+    this.portName,
+    this._portNameUtf16, {
+    // ignore: non_constant_identifier_names
+    required int BaudRate,
+    // ignore: non_constant_identifier_names
+    required int Parity,
+    // ignore: non_constant_identifier_names
+    required int StopBits,
+    // ignore: non_constant_identifier_names
+    required int ByteSize,
+    // ignore: non_constant_identifier_names
+    required int ReadIntervalTimeout,
+    // ignore: non_constant_identifier_names
+    required int ReadTotalTimeoutConstant,
+    // ignore: non_constant_identifier_names
+    required int ReadTotalTimeoutMultiplier,
+    required bool openNow,
+  }) {
     dcb
       ..ref.BaudRate = BaudRate
       ..ref.Parity = Parity
@@ -165,7 +165,7 @@ class SerialPort {
       }
       _createEvent();
 
-      _readStream = _lookUpEvent(Duration(milliseconds: 10));
+      _readStream = _lookUpEvent();
       _readStream.listen((event) {
         readOnListenFunction(event);
       });
@@ -175,13 +175,12 @@ class SerialPort {
   }
 
   /// look up I/O event and read data using stream
-  Stream<Uint8List> _lookUpEvent(Duration interval) async* {
+  Stream<Uint8List> _lookUpEvent() async* {
     int event = 0;
     int readResult = 0;
     Uint8List data;
     PurgeComm(handler!, PURGE_RXCLEAR | PURGE_TXCLEAR);
     while (true) {
-      await Future.delayed(interval);
       event = WaitCommEvent(handler!, _dwCommEvent, _over);
       if (event == TRUE) {
         ClearCommError(handler!, _errors, _status);
@@ -398,7 +397,7 @@ class SerialPort {
     final lpNumberOfBytesWritten = calloc<DWORD>();
     try {
       if (WriteFile(handler!, lpBuffer, lpBuffer.length + 1,
-          lpNumberOfBytesWritten, _over) !=
+              lpNumberOfBytesWritten, _over) !=
           TRUE) {
         return false;
       }
@@ -416,7 +415,7 @@ class SerialPort {
     final lpNumberOfBytesWritten = calloc<DWORD>();
     try {
       if (WriteFile(handler!, lpBuffer, uint8list.length,
-          lpNumberOfBytesWritten, _over) !=
+              lpNumberOfBytesWritten, _over) !=
           TRUE) {
         return false;
       }
@@ -536,7 +535,7 @@ class SerialPort {
 
     ///事件订阅对象
     StreamSubscription _closeSubscription =
-    _closeController.stream.listen((event) {});
+        _closeController.stream.listen((event) {});
     try {
       CloseHandle(handler!);
       _isOpened = false;
