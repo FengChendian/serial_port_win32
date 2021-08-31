@@ -165,7 +165,7 @@ class SerialPort {
       }
       _createEvent();
 
-      _readStream = _lookUpEvent();
+      _readStream = _lookUpEvent(Duration(milliseconds: 1));
       _readStream.listen((event) {
         readOnListenFunction(event);
       });
@@ -175,12 +175,12 @@ class SerialPort {
   }
 
   /// look up I/O event and read data using stream
-  Stream<Uint8List> _lookUpEvent() async* {
+  Stream<Uint8List> _lookUpEvent(Duration interval) async* {
     int event = 0;
-    int readResult = 0;
     Uint8List data;
     PurgeComm(handler!, PURGE_RXCLEAR | PURGE_TXCLEAR);
     while (true) {
+      await Future.delayed(interval);
       event = WaitCommEvent(handler!, _dwCommEvent, _over);
       if (event == TRUE) {
         ClearCommError(handler!, _errors, _status);
