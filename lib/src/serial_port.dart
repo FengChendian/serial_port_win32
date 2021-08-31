@@ -193,7 +193,7 @@ class SerialPort {
           /// WaitForSingleObject is often timeout, so remove it
           // if (WaitForSingleObject(_over.ref.hEvent, 500) == 0) {
           ClearCommError(handler!, _errors, _status);
-          data = await _read(_status.ref.cbInQue);
+          data = await _read(_readBytesSize);
 
           if (data.isNotEmpty) {
             yield data;

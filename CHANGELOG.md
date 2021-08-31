@@ -1,3 +1,7 @@
+## 0.4.6
+
+- always read byteSize which was set
+
 ## 0.4.5
 
 - bugs fixed
