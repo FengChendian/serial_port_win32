@@ -10,6 +10,7 @@ environment:
 
 dependencies:
   win32: ^2.2.9
+  ffi: ^1.1.2
 
 dev_dependencies:
   flutter_test:
