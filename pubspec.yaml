@@ -1,6 +1,6 @@
 name: serial_port_win32
-description: A SerialPort library using win32 API, for connecting real device by serial port. Now only supports Windows.
-version: 0.4.8
+description: A SerialPort library using win32 API, for connecting real device by serial port. Only supports Windows.
+version: 0.4.9
 homepage: https://github.com/FengChendian/serial_port_win32
 repository: https://github.com/FengChendian/serial_port_win32
 issue_tracker: https://github.com/FengChendian/serial_port_win32/issues
@@ -9,9 +9,6 @@ environment:
   sdk: ">=2.12.0 <3.0.0"
 
 dependencies:
-  ffi: ^1.1.2
-  flutter:
-    sdk: flutter
   win32: ^2.2.9
 
 dev_dependencies:
@@ -22,7 +19,7 @@ dev_dependencies:
 # following page: https://dart.dev/tools/pub/pubspec
 
 # The following section is specific to Flutter.
-flutter:
+#flutter:
 
 # To add assets to your package, add an assets section, like this:
 # assets:

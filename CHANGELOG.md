@@ -1,3 +1,7 @@
+## 0.4.9
+
+- delete flutter sdk dependency
+
 ## 0.4.8
 
 - delete print message in source code

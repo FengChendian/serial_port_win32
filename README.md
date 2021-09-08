@@ -7,7 +7,6 @@ A SerialPort library using win32 API.
 ## Getting Started
 
 ### Get Ports
-The port instance is **Singleton Pattern**. Don't re-create port for same Com name.
 
 ```dart
 final ports = SerialPort.getAvailablePorts();
@@ -16,6 +15,7 @@ print(ports);
 ```
 
 ### Create Serial Port
+The port instance is **Singleton Pattern**. Don't re-create port for same Com name.
 
 ```dart
 final port = SerialPort("COM5", openNow: false, ByteSize: 8);
