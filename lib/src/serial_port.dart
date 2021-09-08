@@ -196,7 +196,6 @@ class SerialPort {
         if (GetLastError() == ERROR_IO_PENDING) {
           if (WaitForSingleObject(_over.ref.hEvent, 500) == 0) {
             ClearCommError(handler!, _errors, _status);
-            print("object");
             if (_status.ref.cbInQue < _readBytesSize) {
               data = await _read(_status.ref.cbInQue);
             } else {

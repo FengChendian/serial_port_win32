@@ -1,5 +1,7 @@
+
 import 'package:flutter/material.dart';
 import 'package:serial_port_win32/serial_port_win32.dart';
+
 void main() {
   runApp(MyApp());
 }
@@ -32,22 +34,23 @@ class _MyHomePageState extends State<MyHomePage> {
   late SerialPort port;
 
   String data = '';
-  void _getPorts() {
+
+  void _getPortsAndOpen() {
     ports = SerialPort.getAvailablePorts();
-    if (ports.isNotEmpty){
+    if (ports.isNotEmpty) {
       port = SerialPort(ports[0]);
-      port.readBytesOnListen(8, (value) {data = value.toString(); setState(() {
-
-      });});
+      port.open();
+      print(port.isOpened);
+      port.readBytesOnListen(8, (value) {
+        data = value.toString();
+        setState(() {});
+      });
     }
-    setState(() {
-
-    });
+    setState(() {});
     // setState(() {
     //   ports = SerialPort.getAvailablePorts();
     // });
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -69,11 +72,17 @@ class _MyHomePageState extends State<MyHomePage> {
               style: Theme.of(context).textTheme.headline4,
             ),
             Text(data),
+            ElevatedButton(
+              onPressed: () {
+                port.close();
+              },
+              child: Text("close"),
+            ),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _getPorts,
+        onPressed: _getPortsAndOpen,
         tooltip: 'GetPorts',
         child: Icon(Icons.search),
       ), // This trailing comma makes auto-formatting nicer for build methods.

@@ -1,15 +1,16 @@
 # serial_port_win32
 
-A SerialPort library using win32 API.
+A SerialPort library using win32 API. 
 
 [![pub](https://img.shields.io/pub/v/serial_port_win32?color=blue)](https://pub.dev/packages/serial_port_win32)
 
 ## Getting Started
 
 ### Get Ports
+The port instance is **Singleton Pattern**. Don't re-create port for same Com name.
 
 ```dart
-var ports = SerialPort.getAvailablePorts();
+final ports = SerialPort.getAvailablePorts();
 print(ports);
 /// result like [COM3, COM4]
 ```

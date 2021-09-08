@@ -1,3 +1,8 @@
+## 0.4.8
+
+- delete print message in source code
+- update doc
+
 ## 0.4.7
 
 - using WaitingForSingleObject Function
