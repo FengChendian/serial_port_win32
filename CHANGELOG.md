@@ -1,3 +1,7 @@
+## 0.5.0
+
+- add Flow Control
+
 ## 0.4.9
 
 - delete flutter sdk dependency

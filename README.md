@@ -75,6 +75,13 @@ print(port.writeBytesFromUint8List(uint8_data));
 port.isOpened == false;
 ```
 
+### Flow Control
+
+```dart
+port.setFlowControlSignal(SerialPort.SETDTR);
+port.setFlowControlSignal(SerialPort.CLRDTR);
+```
+
 ### Close Serial Port
 
 #### Close Without Listen

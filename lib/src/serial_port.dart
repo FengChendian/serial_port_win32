@@ -69,6 +69,22 @@ class SerialPort {
   /// Overlapped I/O operation is in progress.
   static const int ERROR_IO_PENDING = 997;
 
+  /// [CLRDTR]
+  /// Clears the DTR (data-terminal-ready) signal.
+  static const int CLRDTR = 6;
+
+  /// [CLRRTS]
+  /// Clears the RTS (request-to-send) signal.
+  static const int CLRRTS = 4;
+
+  /// [SETDTR]
+  /// Sends the DTR (data-terminal-ready) signal.
+  static const int SETDTR = 5;
+
+  /// [SETRTS]
+  /// Sends the RTS (request-to-send) signal.
+  static const int SETRTS = 3;
+
   /// reusable instance using [factory]
   factory SerialPort(
     String portName, {
@@ -362,6 +378,12 @@ class SerialPort {
   set WriteTotalTimeoutConstant(int writeTotalTimeoutConstant) {
     commTimeouts.ref.WriteTotalTimeoutConstant = writeTotalTimeoutConstant;
     _setCommTimeouts();
+  }
+
+  /// [setFlowControlSignal] can set DTR and RTS signal
+  /// Controlling DTR and RTS
+  void setFlowControlSignal(int flag){
+      EscapeCommFunction(handler!, flag);
   }
 
   /// [_read] is a fundamental read function/
