@@ -1,4 +1,6 @@
 
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:serial_port_win32/serial_port_win32.dart';
 
@@ -33,6 +35,8 @@ class _MyHomePageState extends State<MyHomePage> {
   var ports = <String>[];
   late SerialPort port;
 
+  final sendData = Uint8List.fromList(List.filled(4, 1, growable: false));
+
   String data = '';
 
   void _getPortsAndOpen() {
@@ -52,6 +56,11 @@ class _MyHomePageState extends State<MyHomePage> {
     // setState(() {
     //   ports = SerialPort.getAvailablePorts();
     // });
+  }
+
+  void _send(){
+    // print(sendData);
+    print(port.writeBytesFromUint8List(sendData));
   }
 
   @override
@@ -79,6 +88,12 @@ class _MyHomePageState extends State<MyHomePage> {
                 port.close();
               },
               child: Text("close"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                _send();
+              },
+              child: Text("write"),
             ),
           ],
         ),

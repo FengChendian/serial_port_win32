@@ -1,3 +1,8 @@
+## 0.5.2
+
+- bug fixed
+  - write operation always return false
+  - 
 ## 0.5.1
 
 - bug fixed

@@ -431,7 +431,7 @@ class SerialPort {
       if (WriteFile(handler!, lpBuffer, lpBuffer.length + 1,
               lpNumberOfBytesWritten, _over) !=
           TRUE) {
-        return false;
+        return _getOverlappedResult(handler!, _over, lpNumberOfBytesWritten);
       }
       return true;
     } finally {
@@ -449,13 +449,28 @@ class SerialPort {
       if (WriteFile(handler!, lpBuffer, uint8list.length,
               lpNumberOfBytesWritten, _over) !=
           TRUE) {
-        return false;
+        /// Overlapped will cause IO_PENDING
+        return _getOverlappedResult(handler!, _over, lpNumberOfBytesWritten);
       }
       return true;
     } finally {
       free(lpBuffer);
       free(lpNumberOfBytesWritten);
     }
+  }
+
+  /// [_getOverlappedResult] will get write result in non-blocking mode
+  /// 500 ms
+  bool _getOverlappedResult(int handler, Pointer<OVERLAPPED> lpOverlapped,
+      Pointer<Uint32> lpNumberOfBytesTransferred){
+    for (int i = 0; i < 500; i++) {
+      Future.delayed(Duration(milliseconds: 1));
+      if (GetOverlappedResult(handler, _over, lpNumberOfBytesTransferred, 0) ==
+          TRUE) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /// [_getRegistryKeyValue] will open RegistryKey in Serial Path.
