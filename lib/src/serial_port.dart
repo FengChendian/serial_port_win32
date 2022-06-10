@@ -210,19 +210,24 @@ class SerialPort {
         }
       } else {
         if (GetLastError() == ERROR_IO_PENDING) {
-          if (WaitForSingleObject(_over.ref.hEvent, 500) == 0) {
-            ClearCommError(handler!, _errors, _status);
-            if (_status.ref.cbInQue < _readBytesSize) {
-              data = await _read(_status.ref.cbInQue);
-            } else {
-              data = await _read(_readBytesSize);
-            }
+          for (int i = 0; i < 500; i++) {
+            if (WaitForSingleObject(_over.ref.hEvent, 0) == 0) {
+              ClearCommError(handler!, _errors, _status);
+              if (_status.ref.cbInQue < _readBytesSize) {
+                data = await _read(_status.ref.cbInQue);
+              } else {
+                data = await _read(_readBytesSize);
+              }
 
-            if (data.isNotEmpty) {
-              yield data;
+              if (data.isNotEmpty) {
+                yield data;
+              }
+              ResetEvent(_over.ref.hEvent);
+              break;
             }
+            ResetEvent(_over.ref.hEvent);
+            await Future.delayed(interval);
           }
-          ResetEvent(_over.ref.hEvent);
         }
       }
     }
@@ -382,8 +387,8 @@ class SerialPort {
 
   /// [setFlowControlSignal] can set DTR and RTS signal
   /// Controlling DTR and RTS
-  void setFlowControlSignal(int flag){
-      EscapeCommFunction(handler!, flag);
+  void setFlowControlSignal(int flag) {
+    EscapeCommFunction(handler!, flag);
   }
 
   /// [_read] is a fundamental read function/
