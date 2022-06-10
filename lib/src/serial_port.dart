@@ -110,7 +110,7 @@ class SerialPort {
         portName,
         () => SerialPort._internal(
               portName,
-              TEXT(portName),
+              TEXT('\\\\.\\$portName'),
               BaudRate: BaudRate,
               Parity: Parity,
               StopBits: StopBits,
@@ -148,8 +148,8 @@ class SerialPort {
       ..ref.ByteSize = ByteSize;
     commTimeouts
       ..ref.ReadIntervalTimeout = 10
-      ..ref.ReadTotalTimeoutConstant = 1
-      ..ref.ReadTotalTimeoutMultiplier = 0;
+      ..ref.ReadTotalTimeoutMultiplier = 10
+      ..ref.ReadTotalTimeoutConstant = 1;
     if (openNow) {
       open();
     }
@@ -218,7 +218,6 @@ class SerialPort {
               } else {
                 data = await _read(_readBytesSize);
               }
-
               if (data.isNotEmpty) {
                 yield data;
               }
@@ -401,7 +400,8 @@ class SerialPort {
       ReadFile(handler!, lpBuffer, bytesSize, _bytesRead, _over);
     } finally {
       /// Uint16 need to be casted for real Uint8 data
-      uint8list = lpBuffer.cast<Uint8>().asTypedList(_bytesRead.value);
+      var u8l = lpBuffer.cast<Uint8>().asTypedList(_bytesRead.value);
+      uint8list = Uint8List.fromList(u8l);
       free(lpBuffer);
     }
 

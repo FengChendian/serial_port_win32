@@ -37,12 +37,14 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _getPortsAndOpen() {
     ports = SerialPort.getAvailablePorts();
+    print(ports);
     if (ports.isNotEmpty) {
-      port = SerialPort(ports[0]);
+      port = SerialPort(ports[0], openNow: false, ReadIntervalTimeout: 1, ReadTotalTimeoutConstant: 2);
       port.open();
       print(port.isOpened);
-      port.readBytesOnListen(8, (value) {
+      port.readBytesOnListen(9, (value) {
         data = value.toString();
+        print(data);
         setState(() {});
       });
     }
