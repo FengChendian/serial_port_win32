@@ -1,3 +1,9 @@
+## 0.5.1
+
+- bug fixed
+  - random data due to pointer free
+  - open greater than COM9
+
 ## 0.5.0
 
 - add Flow Control

@@ -18,7 +18,7 @@ print(ports);
 The port instance is **Singleton Pattern**. Don't re-create port for same Com name.
 
 ```dart
-final port = SerialPort("COM5", openNow: false, ByteSize: 8);
+final port = SerialPort("COM5", openNow: false, ByteSize: 8, ReadIntervalTimeout: 1, ReadTotalTimeoutConstant: 2);
 // port.open()
 port.openWithSettings(BaudRate: CBR_115200);
 // final port = SerialPort("COM5"); /// auto open with default settings
@@ -38,7 +38,7 @@ port.ReadIntervalTimeout = 10;
 ### Read
 
 ```dart
-port.readBytesOnListen(8, (value) => print(value));
+port.readBytesOnListen(8, (value) => print(value.toString()));
 // or
 port.readOnListenFunction = (value) {
   print(value);
