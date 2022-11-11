@@ -1,3 +1,7 @@
+## 0.5.3
+
+- update packages: win32 & ffi
+
 ## 0.5.2
 
 - bug fixed
