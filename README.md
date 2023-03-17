@@ -40,17 +40,10 @@ port.ReadIntervalTimeout = 10;
 ```dart
 port.readBytesOnListen(8, (value) => print(value.toString()));
 // or
+port.readBytesSize = 8;
 port.readOnListenFunction = (value) {
   print(value);
 };
-// port.readOnListenFunction = (value) {
-//   print(value);
-// };
-// Future.delayed(Duration(seconds: 5)).then((value) {
-//   port.writeBytesFromString('close');
-//   sleep(Duration(seconds: 1));
-//   port.close();
-// });
 ```
 
 ### Write
@@ -104,6 +97,12 @@ port.closeOnListen(
     print(port.isOpened);
   });
 ```
+
+### Attention
+
+If you want to read or write strings using serial, be careful to handle the terminator at the end.
+
+Although in most cases, like "Hello\0" (68 65 6C 6C 6F 00) and "Hello"(68 65 6C 6C 6F) both can be identified by computer.
 
 ### Small Example
 

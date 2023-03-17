@@ -1,12 +1,14 @@
 ## 0.5.3
 
 - update packages: win32 & ffi
+- Maintenance updates
+- doc updates
 
 ## 0.5.2
 
 - bug fixed
   - write operation always return false
-  - 
+
 ## 0.5.1
 
 - bug fixed

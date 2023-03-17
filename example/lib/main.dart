@@ -46,8 +46,9 @@ class _MyHomePageState extends State<MyHomePage> {
       port = SerialPort(ports[0], openNow: false, ReadIntervalTimeout: 1, ReadTotalTimeoutConstant: 2);
       port.open();
       print(port.isOpened);
-      port.readBytesOnListen(9, (value) {
-        data = value.toString();
+      port.readBytesOnListen(16, (value) {
+        data = String.fromCharCodes(value);
+        print(DateTime.now());
         print(data);
         setState(() {});
       });
@@ -80,7 +81,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             Text(
               ports.toString(),
-              style: Theme.of(context).textTheme.headline4,
+              style: Theme.of(context).textTheme.headlineMedium,
             ),
             Text(data),
             ElevatedButton(
