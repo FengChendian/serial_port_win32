@@ -1,3 +1,7 @@
+## 0.5.4
+
+- catch registry not found exception
+
 ## 0.5.3
 
 - update packages: win32 & ffi

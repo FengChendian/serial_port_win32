@@ -462,7 +462,7 @@ class SerialPort {
   /// [_getOverlappedResult] will get write result in non-blocking mode
   /// 500 ms
   bool _getOverlappedResult(int handler, Pointer<OVERLAPPED> lpOverlapped,
-      Pointer<Uint32> lpNumberOfBytesTransferred){
+      Pointer<Uint32> lpNumberOfBytesTransferred) {
     for (int i = 0; i < 500; i++) {
       Future.delayed(Duration(milliseconds: 1));
       if (GetOverlappedResult(handler, _over, lpNumberOfBytesTransferred, 0) ==
@@ -476,13 +476,16 @@ class SerialPort {
   /// [_getRegistryKeyValue] will open RegistryKey in Serial Path.
   static int _getRegistryKeyValue() {
     final hKeyPtr = calloc<IntPtr>();
+    int lResult;
     try {
-      if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, _keyPath, 0, KEY_READ, hKeyPtr) !=
-          ERROR_SUCCESS) {
-        RegCloseKey(hKeyPtr.value);
-        throw Exception("can't open Register");
+      lResult =
+          RegOpenKeyEx(HKEY_LOCAL_MACHINE, _keyPath, 0, KEY_READ, hKeyPtr);
+      if (lResult != ERROR_SUCCESS) {
+        // RegCloseKey(hKeyPtr.value);
+        throw Exception("RegistryKeyValue Not Found");
+      } else {
+        return hKeyPtr.value;
       }
-      return hKeyPtr.value;
     } finally {
       free(hKeyPtr);
     }
@@ -541,8 +544,14 @@ class SerialPort {
   static List<String> getAvailablePorts() {
     /// availablePorts String list
     List<String> portsList = [];
+    final hKey;
 
-    final hKey = _getRegistryKeyValue();
+    /// Get registry key of Serial Port
+    try {
+      hKey = _getRegistryKeyValue();
+    } on Exception {
+      return List.empty();
+    }
 
     /// The index of the value to be retrieved.
     /// This parameter should be zero for the first call to the RegEnumValue function and then be incremented for subsequent calls.

@@ -1,4 +1,3 @@
-
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -43,7 +42,8 @@ class _MyHomePageState extends State<MyHomePage> {
     ports = SerialPort.getAvailablePorts();
     print(ports);
     if (ports.isNotEmpty) {
-      port = SerialPort(ports[0], openNow: false, ReadIntervalTimeout: 1, ReadTotalTimeoutConstant: 2);
+      port = SerialPort(ports[0],
+          openNow: false, ReadIntervalTimeout: 1, ReadTotalTimeoutConstant: 2);
       port.open();
       print(port.isOpened);
       port.readBytesOnListen(16, (value) {
@@ -59,7 +59,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // });
   }
 
-  void _send(){
+  void _send() {
     // print(sendData);
     print(port.writeBytesFromUint8List(sendData));
   }
