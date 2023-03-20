@@ -1,3 +1,9 @@
+## 0.6.0
+
+- add [getPortsWithFullMessages] functions
+- plan to support VID and PID
+- can get friendly name of port
+
 ## 0.5.4
 
 - catch registry not found exception

@@ -14,6 +14,12 @@ print(ports);
 /// result like [COM3, COM4]
 ```
 
+### Get Ports with more messages (Experiment)
+```dart
+final List<PortInfo> ports = SerialPort.getPortsWithFullMessages();
+print(ports); /// print [Port Name: COM3, FriendlyName: 蓝牙链接上的标准串行 (COM3)]
+```
+
 ### Create Serial Port
 The port instance is **Singleton Pattern**. Don't re-create port for same Com name.
 
@@ -120,3 +126,8 @@ void main() {
     }
 }
 ```
+
+### TODO
+
+- VID and PID Read
+

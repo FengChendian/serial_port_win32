@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ffi';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:win32/win32.dart';
 import 'package:ffi/ffi.dart';
@@ -574,6 +575,72 @@ class SerialPort {
     return portsList;
   }
 
+  /// TODO: Get Port PID and VID;
+  /// Using [getPortsWithFullMessages] to get Serial Ports Info
+  /// return [PortInfo({
+  ///     required this.portName,
+  ///     required this.friendlyName,
+  ///   })];
+  static List<PortInfo> getPortsWithFullMessages() {
+    /// Storage port information
+    var portInfoLists = <PortInfo>[];
+
+    /// Set Class GUID
+    final classGUID = calloc<GUID>();
+    classGUID.ref.setGUID(GUID_DEVINTERFACE_COMPORT);
+
+    /// Get Device info handle
+    final hDeviceInfo = SetupDiGetClassDevs(
+        classGUID, nullptr, 0, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT);
+
+    if (hDeviceInfo != INVALID_HANDLE_VALUE) {
+      /// Init device info data
+      final devInfoData = calloc<SP_DEVINFO_DATA>();
+      devInfoData.ref.cbSize = sizeOf<SP_DEVINFO_DATA>();
+
+      /// Enum device
+      for (var i = 0;
+          SetupDiEnumDeviceInfo(hDeviceInfo, i, devInfoData) == TRUE;
+          i++) {
+        /// Init [PortName] and [friendlyName] Pointer
+        final portName = calloc<Uint8>(256);
+        final pcbData = calloc<DWORD>()..value = 255;
+        final friendlyName = calloc<BYTE>(256);
+
+        try {
+          var hDevKey = SetupDiOpenDevRegKey(hDeviceInfo, devInfoData,
+              DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_READ);
+
+          if (hDevKey != INVALID_HANDLE_VALUE) {
+            RegQueryValueEx(
+                hDevKey, TEXT("PortName"), nullptr, nullptr, portName, pcbData);
+            RegCloseKey(hDevKey);
+          }
+
+          /// Get friendly name
+          SetupDiGetDeviceRegistryProperty(hDeviceInfo, devInfoData,
+              SPDRP.SPDRP_FRIENDLYNAME, nullptr, friendlyName, 255, nullptr);
+
+          /// Convert Wchar to String
+          final portNameStr = portName.cast<Utf16>().toDartString();
+          final friendlyNameStr = friendlyName.cast<Utf16>().toDartString();
+
+          /// add to lists
+          portInfoLists.add(
+              PortInfo(portName: portNameStr, friendlyName: friendlyNameStr));
+        } finally {
+          free(portName);
+          free(pcbData);
+          free(friendlyName);
+        }
+      }
+
+      /// [Destroy Device Info List]
+      SetupDiDestroyDeviceInfoList(hDeviceInfo);
+    }
+    return portInfoLists;
+  }
+
   /// [close] port which was opened
   void close() {
     CloseHandle(handler!);
@@ -602,5 +669,27 @@ class SerialPort {
       _closeController.close();
     }
     return _closeSubscription;
+  }
+}
+
+/// [PortInfo] storages [portName] and [friendlyName]
+class PortInfo {
+  /// COM Port Name like [COM1]
+  final String portName;
+
+  /// Friendly name in windows property
+  final String friendlyName;
+
+  // final hardwareID;
+
+  const PortInfo({
+    required this.portName,
+    required this.friendlyName,
+    // required this.hardwareID,
+  });
+
+  @override
+  String toString() {
+    return 'Port Name: $portName, FriendlyName: $friendlyName';
   }
 }

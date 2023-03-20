@@ -39,7 +39,10 @@ class _MyHomePageState extends State<MyHomePage> {
   String data = '';
 
   void _getPortsAndOpen() {
+    final List<PortInfo> portInfoLists = SerialPort.getPortsWithFullMessages();
     ports = SerialPort.getAvailablePorts();
+
+    print(portInfoLists);
     print(ports);
     if (ports.isNotEmpty) {
       port = SerialPort(ports[0],
