@@ -1,3 +1,8 @@
+## 0.7.0
+
+- add query for hardwareID(include VID and PID ), MFG(manufacture name)
+- can query different class GUID
+
 ## 0.6.0
 
 - add [getPortsWithFullMessages] functions

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:ffi';
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:win32/win32.dart';
 import 'package:ffi/ffi.dart';
@@ -545,7 +544,7 @@ class SerialPort {
   static List<String> getAvailablePorts() {
     /// availablePorts String list
     List<String> portsList = [];
-    final hKey;
+    final int hKey;
 
     /// Get registry key of Serial Port
     try {
@@ -575,19 +574,23 @@ class SerialPort {
     return portsList;
   }
 
-  /// TODO: Get Port PID and VID;
   /// Using [getPortsWithFullMessages] to get Serial Ports Info
+  /// Parameter: {String classGUIDStr = GUID_DEVINTERFACE_COMPORT}, Refer to [https://learn.microsoft.com/en-us/windows-hardware/drivers/install/guid-devinterface-comport]
+  /// You can set classGUIDStr = GUID_DEVINTERFACE_USB_DEVICE
   /// return [PortInfo({
   ///     required this.portName,
   ///     required this.friendlyName,
+  ///     required this.hardwareID,
+  //     required this.manufactureName,
   ///   })];
-  static List<PortInfo> getPortsWithFullMessages() {
+  static List<PortInfo> getPortsWithFullMessages(
+      {String classGUIDStr = GUID_DEVINTERFACE_COMPORT}) {
     /// Storage port information
     var portInfoLists = <PortInfo>[];
 
     /// Set Class GUID
     final classGUID = calloc<GUID>();
-    classGUID.ref.setGUID(GUID_DEVINTERFACE_COMPORT);
+    classGUID.ref.setGUID(classGUIDStr);
 
     /// Get Device info handle
     final hDeviceInfo = SetupDiGetClassDevs(
@@ -606,6 +609,17 @@ class SerialPort {
         final portName = calloc<Uint8>(256);
         final pcbData = calloc<DWORD>()..value = 255;
         final friendlyName = calloc<BYTE>(256);
+        final hardwareID = calloc<BYTE>(256);
+        final manufactureName = calloc<BYTE>(256);
+
+        /// [SP_DEVICE_INTERFACE_DATA] in dart
+        // final deviceInterfaceData = calloc<SP_DEVICE_INTERFACE_DATA>();
+        // deviceInterfaceData.ref.cbSize = sizeOf<SP_DEVICE_INTERFACE_DATA>();
+        //
+        // final deviceInterfaceDetailData =
+        //     calloc<SP_DEVICE_INTERFACE_DETAIL_DATA_>(1024);
+        // deviceInterfaceDetailData.ref.cbSize =
+        //     sizeOf<SP_DEVICE_INTERFACE_DETAIL_DATA_>();
 
         try {
           var hDevKey = SetupDiOpenDevRegKey(hDeviceInfo, devInfoData,
@@ -618,20 +632,64 @@ class SerialPort {
           }
 
           /// Get friendly name
-          SetupDiGetDeviceRegistryProperty(hDeviceInfo, devInfoData,
-              SPDRP.SPDRP_FRIENDLYNAME, nullptr, friendlyName, 255, nullptr);
+          if (SetupDiGetDeviceRegistryProperty(
+                  hDeviceInfo,
+                  devInfoData,
+                  SPDRP.SPDRP_FRIENDLYNAME,
+                  nullptr,
+                  friendlyName,
+                  255,
+                  nullptr) !=
+              TRUE) {
+            continue;
+          }
+
+          /// Get Hardware ID
+          if (SetupDiGetDeviceRegistryProperty(hDeviceInfo, devInfoData,
+                  SPDRP.SPDRP_HARDWAREID, nullptr, hardwareID, 255, nullptr) !=
+              TRUE) {
+            continue;
+          }
+
+          /// Get MFG
+          if (SetupDiGetDeviceRegistryProperty(hDeviceInfo, devInfoData,
+                  SPDRP.SPDRP_MFG, nullptr, manufactureName, 255, nullptr) !=
+              TRUE) {
+            continue;
+          }
+
+          // if (SetupDiEnumDeviceInterfaces(hDeviceInfo, devInfoData, classGUID, i, deviceInterfaceData) != TRUE) {
+          //   continue;
+          // }
+          //
+          // if (SetupDiGetDeviceInterfaceDetail(hDeviceInfo, deviceInterfaceData, deviceInterfaceDetailData, 1023, nullptr, nullptr) != TRUE) {
+          //   continue;
+          // }
 
           /// Convert Wchar to String
-          final portNameStr = portName.cast<Utf16>().toDartString();
-          final friendlyNameStr = friendlyName.cast<Utf16>().toDartString();
+          final String portNameStr = portName.cast<Utf16>().toDartString();
+          final String friendlyNameStr =
+              friendlyName.cast<Utf16>().toDartString();
+          // final String interfaceDetailDataStr = deviceInterfaceDetailData.ref.DevicePath;
+          // print(interfaceDetailDataStr);
+          final String hardwareIDStr = hardwareID.cast<Utf16>().toDartString();
+          final String manufactureNameStr =
+              manufactureName.cast<Utf16>().toDartString();
 
           /// add to lists
-          portInfoLists.add(
-              PortInfo(portName: portNameStr, friendlyName: friendlyNameStr));
+          portInfoLists.add(PortInfo(
+              portName: portNameStr,
+              friendlyName: friendlyNameStr,
+              hardwareID: hardwareIDStr,
+              manufactureName: manufactureNameStr));
         } finally {
           free(portName);
           free(pcbData);
           free(friendlyName);
+          free(hardwareID);
+          free(manufactureName);
+          // free(deviceInterfaceData);
+          // free(deviceInterfaceDetailData);
         }
       }
 
@@ -680,16 +738,18 @@ class PortInfo {
   /// Friendly name in windows property
   final String friendlyName;
 
-  // final hardwareID;
+  final String hardwareID;
+  final String manufactureName;
 
   const PortInfo({
     required this.portName,
     required this.friendlyName,
-    // required this.hardwareID,
+    required this.hardwareID,
+    required this.manufactureName,
   });
 
   @override
   String toString() {
-    return 'Port Name: $portName, FriendlyName: $friendlyName';
+    return 'Port Name: $portName, FriendlyName: $friendlyName, hardwareID: $hardwareID, manufactureName: $manufactureName';
   }
 }
