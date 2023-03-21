@@ -17,7 +17,15 @@ print(ports);
 ### Get Ports with more messages (Experiment)
 ```dart
 final List<PortInfo> ports = SerialPort.getPortsWithFullMessages();
-print(ports); /// print [Port Name: COM3, FriendlyName: 蓝牙链接上的标准串行 (COM3)]
+print(ports); 
+/// print [Port Name: COM3, FriendlyName: 蓝牙链接上的标准串行 (COM3), hardwareID: BTHENUM\{00001101-0000-1000-8000-00803f9b55fb}_LOCALMFG&0000, manufactureName: Microsoft]
+
+PortInfo({
+required this.portName,
+required this.friendlyName,
+required this.hardwareID,
+required this.manufactureName,
+});
 ```
 
 ### Create Serial Port
