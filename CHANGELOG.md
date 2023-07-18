@@ -1,3 +1,7 @@
+## 1.0.0
+
+- Temporarily remove readBytesOnListen for bugs, using `readBytesOnce` instead.
+
 ## 0.7.0
 
 - add query for hardwareID(include VID and PID ), MFG(manufacture name)

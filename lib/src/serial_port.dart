@@ -181,10 +181,10 @@ class SerialPort {
       }
       _createEvent();
 
-      _readStream = _lookUpEvent(Duration(milliseconds: 1));
-      _readStream.listen((event) {
-        readOnListenFunction(event);
-      });
+      // _readStream = _lookUpEvent(Duration(milliseconds: 1));
+      // _readStream.listen((event) {
+      //   readOnListenFunction(event);
+      // });
     } else {
       throw Exception('Port is opened');
     }
@@ -414,6 +414,7 @@ class SerialPort {
   }
 
   /// [readBytesOnListen] can constantly listen data, you can use [onData] to get data.
+  @Deprecated('Temporarily remove for read bugs in [https://github.com/FengChendian/serial_port_win32/issues/25]')
   void readBytesOnListen(int bytesSize, Function(Uint8List value) onData,
       {void onBefore()?}) {
     _readBytesSize = bytesSize;
@@ -575,7 +576,7 @@ class SerialPort {
   }
 
   /// Using [getPortsWithFullMessages] to get Serial Ports Info
-  /// Parameter: {String classGUIDStr = GUID_DEVINTERFACE_COMPORT}, Refer to [https://learn.microsoft.com/en-us/windows-hardware/drivers/install/guid-devinterface-comport]
+  /// Parameter: {String classGUIDStr = GUID_DEVINTERFACE_COMPORT}, refer to https://learn.microsoft.com/en-us/windows-hardware/drivers/install/guid-devinterface-comport
   /// You can set classGUIDStr = GUID_DEVINTERFACE_USB_DEVICE
   /// return [PortInfo({
   ///     required this.portName,
@@ -730,7 +731,8 @@ class SerialPort {
   }
 }
 
-/// [PortInfo] storages [portName] and [friendlyName]
+/// [PortInfo] storages [portName], [friendlyName], [hardwareID], [manufactureName]
+/// [hardwareID] Refer to https://learn.microsoft.com/en-us/windows-hardware/drivers/install/hardware-ids
 class PortInfo {
   /// COM Port Name like [COM1]
   final String portName;

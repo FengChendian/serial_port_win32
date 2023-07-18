@@ -52,12 +52,7 @@ port.ReadIntervalTimeout = 10;
 ### Read
 
 ```dart
-port.readBytesOnListen(8, (value) => print(value.toString()));
-// or
-port.readBytesSize = 8;
-port.readOnListenFunction = (value) {
-  print(value);
-};
+final bytes = await port.readBytesOnce(10);
 ```
 
 ### Write
@@ -134,8 +129,3 @@ void main() {
     }
 }
 ```
-
-### TODO
-
-- VID and PID Read
-
