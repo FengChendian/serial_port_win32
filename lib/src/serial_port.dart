@@ -181,10 +181,10 @@ class SerialPort {
       }
       _createEvent();
 
-      // _readStream = _lookUpEvent(Duration(milliseconds: 1));
-      // _readStream.listen((event) {
-      //   readOnListenFunction(event);
-      // });
+      _readStream = _lookUpEvent(Duration(milliseconds: 1));
+      _readStream.listen((event) {
+        readOnListenFunction(event);
+      });
     } else {
       throw Exception('Port is opened');
     }
@@ -194,7 +194,7 @@ class SerialPort {
   Stream<Uint8List> _lookUpEvent(Duration interval) async* {
     int event = 0;
     Uint8List data;
-    PurgeComm(handler!, PURGE_RXCLEAR | PURGE_TXCLEAR);
+    // PurgeComm(handler!, PURGE_RXCLEAR | PURGE_TXCLEAR);
     while (true) {
       await Future.delayed(interval);
       event = WaitCommEvent(handler!, _dwCommEvent, _over);
@@ -227,6 +227,8 @@ class SerialPort {
             ResetEvent(_over.ref.hEvent);
             await Future.delayed(interval);
           }
+        } else {
+          /// Fallback
         }
       }
     }
@@ -392,15 +394,14 @@ class SerialPort {
 
   /// [_read] is a fundamental read function/
   Future<Uint8List> _read(int bytesSize) async {
-    final lpBuffer = calloc<Uint16>(bytesSize);
+    final lpBuffer = calloc<Uint8>(bytesSize);
     Uint8List uint8list;
-
     try {
       readOnBeforeFunction();
       ReadFile(handler!, lpBuffer, bytesSize, _bytesRead, _over);
     } finally {
       /// Uint16 need to be casted for real Uint8 data
-      var u8l = lpBuffer.cast<Uint8>().asTypedList(_bytesRead.value);
+      var u8l = lpBuffer.asTypedList(_bytesRead.value);
       uint8list = Uint8List.fromList(u8l);
       free(lpBuffer);
     }
@@ -408,13 +409,7 @@ class SerialPort {
     return uint8list;
   }
 
-  /// [readBytesOnce] read data only once.
-  Future<Uint8List> readBytesOnce(int bytesSize) async {
-    return _read(bytesSize);
-  }
-
   /// [readBytesOnListen] can constantly listen data, you can use [onData] to get data.
-  @Deprecated('Temporarily remove for read bugs in [https://github.com/FengChendian/serial_port_win32/issues/25]')
   void readBytesOnListen(int bytesSize, Function(Uint8List value) onData,
       {void onBefore()?}) {
     _readBytesSize = bytesSize;
@@ -429,7 +424,7 @@ class SerialPort {
     final lpBuffer = buffer.toANSI();
     final lpNumberOfBytesWritten = calloc<DWORD>();
     try {
-      if (WriteFile(handler!, lpBuffer, lpBuffer.length + 1,
+      if (WriteFile(handler!, lpBuffer.cast<Uint8>(), lpBuffer.length + 1,
               lpNumberOfBytesWritten, _over) !=
           TRUE) {
         return _getOverlappedResult(handler!, _over, lpNumberOfBytesWritten);

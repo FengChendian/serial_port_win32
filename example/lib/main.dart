@@ -45,10 +45,10 @@ class _MyHomePageState extends State<MyHomePage> {
     print(portInfoLists);
     print(ports);
     if (ports.isNotEmpty) {
-      port = SerialPort(ports[0],
+      port = SerialPort("COM5",
           openNow: false, ReadIntervalTimeout: 1, ReadTotalTimeoutConstant: 2);
       port.open();
-      print(port.isOpened);
+      // print(port.isOpened);
       port.readBytesOnListen(16, (value) {
         data = String.fromCharCodes(value);
         print(DateTime.now());
@@ -57,14 +57,14 @@ class _MyHomePageState extends State<MyHomePage> {
       });
     }
     setState(() {});
-    // setState(() {
-    //   ports = SerialPort.getAvailablePorts();
-    // });
   }
 
-  void _send() {
+  void _send() async {
     // print(sendData);
-    print(port.writeBytesFromUint8List(sendData));
+    print(port.writeBytesFromString("AT"));
+
+    // var data = await port.readBytesOnce(10);
+    // print(data);
   }
 
   @override

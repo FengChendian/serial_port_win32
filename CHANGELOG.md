@@ -1,3 +1,8 @@
+## 1.1.0
+
+- remove `readBytesOnce` Function to fix async race
+- Don't purge com before read. Some computers may purge com after read in async mode.
+
 ## 1.0.0
 
 - Temporarily remove readBytesOnListen for bugs, using `readBytesOnce` instead.
