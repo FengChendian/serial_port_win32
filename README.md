@@ -52,7 +52,10 @@ port.ReadIntervalTimeout = 10;
 ### Read
 
 ```dart
-final bytes = await port.readBytesOnce(10);
+port.readBytesSize = 8;
+port.readOnListenFunction = (value) {
+print(value);
+};
 ```
 
 ### Write
