@@ -34,7 +34,7 @@ class SerialPort {
   /// staus
   final _status = calloc<COMSTAT>();
 
-  /// [_keyPath] is registry path which will be oepned
+  /// [_keyPath] is registry path which will be opened
   static final _keyPath = TEXT("HARDWARE\\DEVICEMAP\\SERIALCOMM");
 
   /// [isOpened] is true when port was opened, [CreateFile] function will open a port.
@@ -47,10 +47,10 @@ class SerialPort {
   /// stream data
   late Stream<Uint8List> _readStream;
 
-  /// [readOnListenFunction] define what  to do when data comming
+  /// [readOnListenFunction] define what  to do when data coming
   Function(Uint8List value) readOnListenFunction = (value) {};
 
-  /// [readOnBeforeFunction] define what  to do when data comming
+  /// [readOnBeforeFunction] define what  to do when data coming
   Function() readOnBeforeFunction = () {};
 
   /// read data which has size [_readBytesSize]
@@ -157,6 +157,7 @@ class SerialPort {
 
   /// [open] can be called when handler is null or handler is closed
   void open() {
+    /// Do not open a port which has been opened
     if (_isOpened == false) {
       handler = CreateFile(_portNameUtf16, GENERIC_READ | GENERIC_WRITE, 0,
           nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
@@ -166,7 +167,7 @@ class SerialPort {
         if (lastError == ERROR_FILE_NOT_FOUND) {
           throw Exception(_portNameUtf16.toDartString() + "is not available");
         } else {
-          throw Exception('Last error is $lastError');
+          throw Exception('Open port failed, error is $lastError');
         }
       }
 
@@ -181,16 +182,16 @@ class SerialPort {
       }
       _createEvent();
 
-      _readStream = _lookUpEvent(Duration(milliseconds: 1));
+      _readStream = _lookUpEvent(Duration(microseconds: 500));
       _readStream.listen((event) {
         readOnListenFunction(event);
       });
     } else {
-      throw Exception('Port is opened');
+      throw Exception('Port has been opened');
     }
   }
 
-  /// look up I/O event and read data using stream
+  /// [_lookUpEvent] will look up I/O event and read data using stream
   Stream<Uint8List> _lookUpEvent(Duration interval) async* {
     int event = 0;
     Uint8List data;
@@ -198,7 +199,7 @@ class SerialPort {
     while (true) {
       await Future.delayed(interval);
       event = WaitCommEvent(handler!, _dwCommEvent, _over);
-      if (event != 0) {
+      if (event != FALSE) {
         ClearCommError(handler!, _errors, _status);
         if (_status.ref.cbInQue < _readBytesSize) {
           data = await _read(_status.ref.cbInQue);
@@ -210,7 +211,8 @@ class SerialPort {
         }
       } else {
         if (GetLastError() == ERROR_IO_PENDING) {
-          for (int i = 0; i < 500; i++) {
+          /// wait io complete, timeout in 500ms
+          for (int i = 0; i < 1000; i++) {
             if (WaitForSingleObject(_over.ref.hEvent, 0) == 0) {
               ClearCommError(handler!, _errors, _status);
               if (_status.ref.cbInQue < _readBytesSize) {
@@ -222,10 +224,13 @@ class SerialPort {
                 yield data;
               }
               ResetEvent(_over.ref.hEvent);
+              // break for next read operation.
               break;
+            } else {
+              ResetEvent(_over.ref.hEvent);
+              // continue waiting
+              await Future.delayed(interval);
             }
-            ResetEvent(_over.ref.hEvent);
-            await Future.delayed(interval);
           }
         } else {
           /// Fallback
@@ -418,16 +423,19 @@ class SerialPort {
   }
 
   /// [writeBytesFromString] will convert String to ANSI Code corresponding to char
-  /// Serial devices can receive ANSI code
-  /// if you write "hello" in String, device will get "hello\0" with "\0" automatically.
-  bool writeBytesFromString(String buffer) {
+  ///
+  /// if you write "hello" in String, PC will send "hello\0" with "\0" automatically.
+  ///
+  /// - Unit of [timeout] is ms
+  bool writeBytesFromString(String buffer, {int timeout = 500}) {
     final lpBuffer = buffer.toANSI();
     final lpNumberOfBytesWritten = calloc<DWORD>();
     try {
       if (WriteFile(handler!, lpBuffer.cast<Uint8>(), lpBuffer.length + 1,
               lpNumberOfBytesWritten, _over) !=
           TRUE) {
-        return _getOverlappedResult(handler!, _over, lpNumberOfBytesWritten);
+        return _getOverlappedResult(
+            handler!, _over, lpNumberOfBytesWritten, timeout);
       }
       return true;
     } finally {
@@ -438,7 +446,7 @@ class SerialPort {
 
   /// [writeBytesFromUint8List] will write Uint8List directly, please ensure the last
   /// of list is 0 terminator if you want to convert it to char.
-  bool writeBytesFromUint8List(Uint8List uint8list) {
+  bool writeBytesFromUint8List(Uint8List uint8list, {int timeout = 500}) {
     final lpBuffer = uint8list.allocatePointer();
     final lpNumberOfBytesWritten = calloc<DWORD>();
     try {
@@ -446,7 +454,8 @@ class SerialPort {
               lpNumberOfBytesWritten, _over) !=
           TRUE) {
         /// Overlapped will cause IO_PENDING
-        return _getOverlappedResult(handler!, _over, lpNumberOfBytesWritten);
+        return _getOverlappedResult(
+            handler!, _over, lpNumberOfBytesWritten, timeout);
       }
       return true;
     } finally {
@@ -458,8 +467,8 @@ class SerialPort {
   /// [_getOverlappedResult] will get write result in non-blocking mode
   /// 500 ms
   bool _getOverlappedResult(int handler, Pointer<OVERLAPPED> lpOverlapped,
-      Pointer<Uint32> lpNumberOfBytesTransferred) {
-    for (int i = 0; i < 500; i++) {
+      Pointer<Uint32> lpNumberOfBytesTransferred, int timeout) {
+    for (int i = 0; i < timeout; i++) {
       Future.delayed(Duration(milliseconds: 1));
       if (GetOverlappedResult(handler, _over, lpNumberOfBytesTransferred, 0) ==
           TRUE) {
