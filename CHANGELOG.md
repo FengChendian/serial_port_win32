@@ -1,3 +1,8 @@
+## 1.2.0
+
+- update read performance
+- add timeout option in write function
+
 ## 1.1.0
 
 - remove `readBytesOnce` Function to fix async race
