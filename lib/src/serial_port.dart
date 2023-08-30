@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:ffi';
-import 'dart:typed_data';
 import 'package:win32/win32.dart';
 import 'package:ffi/ffi.dart';
+import 'package:flutter/foundation.dart';
 
 class SerialPort {
   /// [portName] like COM3
@@ -402,6 +402,8 @@ class SerialPort {
     } finally {
       /// Uint16 need to be casted for real Uint8 data
       var u8l = lpBuffer.asTypedList(_bytesRead.value);
+
+      /// Copy data
       uint8list = Uint8List.fromList(u8l);
       free(lpBuffer);
     }
@@ -410,6 +412,7 @@ class SerialPort {
   }
 
   /// [readBytesOnListen] can listen data in polling mode, endless loop, you can use [onData] to get data.
+  /// - [dataPollingInterval] set data polling interval
   void readBytesOnListen(int bytesSize, Function(Uint8List value) onData,
       {void onBefore()?,
       Duration dataPollingInterval = const Duration(microseconds: 500)}) {
@@ -421,6 +424,64 @@ class SerialPort {
     _readStream!.listen((event) {
       readOnListenFunction(event);
     });
+  }
+
+  /// [readBytesUntil] will read until an [expected] sequence is found
+  Future<Uint8List> readBytesUntil(Uint8List expected,
+      {Duration dataPollingInterval =
+          const Duration(microseconds: 500)}) async {
+    /// either [readBytesOnListen] or [readBytesUntil]
+    if (_readStream != null) {
+      throw Exception("You have used listen function");
+    }
+
+    int event = 0;
+    List<int> readData = List<int>.empty(growable: true);
+    final expectedListLength = expected.length;
+
+    while (true) {
+      event = WaitCommEvent(handler!, _dwCommEvent, _over);
+      if (event != FALSE) {
+        ClearCommError(handler!, _errors, _status);
+        if (_status.ref.cbInQue != 0) {
+          readData.add((await _read(1))[0]);
+        } else {
+          /// do nothing
+        }
+      } else {
+        if (GetLastError() == ERROR_IO_PENDING) {
+          /// wait io complete, timeout in 500ms
+          for (int i = 0; i < 1000; i++) {
+            if (WaitForSingleObject(_over.ref.hEvent, 0) == 0) {
+              ClearCommError(handler!, _errors, _status);
+              if (_status.ref.cbInQue != 0) {
+                readData.add((await _read(1))[0]);
+              } else {}
+              ResetEvent(_over.ref.hEvent);
+              // break for next read operation.
+              break;
+            } else {
+              ResetEvent(_over.ref.hEvent);
+              // continue waiting
+              await Future.delayed(dataPollingInterval);
+            }
+          }
+        } else {
+          /// Fallback
+        }
+      }
+      if (readData.length < expectedListLength) {
+        continue;
+      } else {
+        if (listEquals(
+            readData.sublist(readData.length - expectedListLength), expected)) {
+          return Uint8List.fromList(readData);
+        } else {
+          await Future.delayed(dataPollingInterval);
+          continue;
+        }
+      }
+    }
   }
 
   /// [writeBytesFromString] will convert String to ANSI Code corresponding to char
@@ -459,6 +520,7 @@ class SerialPort {
   bool writeBytesFromUint8List(Uint8List uint8list, {int timeout = 500}) {
     final lpBuffer = uint8list.allocatePointer();
     final lpNumberOfBytesWritten = calloc<DWORD>();
+
     try {
       if (WriteFile(handler!, lpBuffer, uint8list.length,
               lpNumberOfBytesWritten, _over) !=

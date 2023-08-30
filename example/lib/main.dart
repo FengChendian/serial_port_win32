@@ -49,19 +49,19 @@ class _MyHomePageState extends State<MyHomePage> {
           openNow: false, ReadIntervalTimeout: 1, ReadTotalTimeoutConstant: 2);
       port.open();
       // print(port.isOpened);
-      port.readBytesOnListen(16, (value) {
-        data = String.fromCharCodes(value);
-        print(DateTime.now());
-        print(data);
-        setState(() {});
-      });
-
-      port.readBytesOnListen(16, (value) {
-        data = String.fromCharCodes(value);
-        print(DateTime.now());
-        print(data);
-        setState(() {});
-      });
+      // port.readBytesOnListen(16, (value) {
+      //   data = String.fromCharCodes(value);
+      //   print(DateTime.now());
+      //   print(data);
+      //   setState(() {});
+      // });
+      //
+      // port.readBytesOnListen(16, (value) {
+      //   data = String.fromCharCodes(value);
+      //   print(DateTime.now());
+      //   print(data);
+      //   setState(() {});
+      // });
     }
     setState(() {});
   }
@@ -69,7 +69,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void _send() async {
     // print(sendData);
     print(port.writeBytesFromString("AT"));
-
+    print(await port.readBytesUntil(Uint8List.fromList("\n".codeUnits)));
     // var data = await port.readBytesOnce(10);
     // print(data);
   }

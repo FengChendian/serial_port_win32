@@ -56,6 +56,9 @@ port.readBytesSize = 8;
 port.readOnListenFunction = (value) {
 print(value);
 };
+// or
+// can only choose one function
+print(await port.readBytesUntil(Uint8List.fromList("\n".codeUnits)));
 ```
 
 ### Write

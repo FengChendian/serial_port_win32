@@ -1,3 +1,10 @@
+## 1.3.0
+
+- fix bugs
+- add `readBytesUntil` function
+- add more option when read or write
+- update docs
+
 ## 1.2.0
 
 - update read performance

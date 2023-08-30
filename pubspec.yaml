@@ -1,6 +1,6 @@
 name: serial_port_win32
 description: A SerialPort library using win32 API, for connecting real device by serial port. Only supports Windows.
-version: 1.2.0
+version: 1.3.0
 homepage: https://github.com/FengChendian/serial_port_win32
 repository: https://github.com/FengChendian/serial_port_win32
 issue_tracker: https://github.com/FengChendian/serial_port_win32/issues
