@@ -55,6 +55,13 @@ class _MyHomePageState extends State<MyHomePage> {
         print(data);
         setState(() {});
       });
+
+      port.readBytesOnListen(16, (value) {
+        data = String.fromCharCodes(value);
+        print(DateTime.now());
+        print(data);
+        setState(() {});
+      });
     }
     setState(() {});
   }

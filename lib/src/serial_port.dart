@@ -45,7 +45,7 @@ class SerialPort {
   static final Map<String, SerialPort> _cache = <String, SerialPort>{};
 
   /// stream data
-  late Stream<Uint8List> _readStream;
+  Stream<Uint8List>? _readStream;
 
   /// [readOnListenFunction] define what  to do when data coming
   Function(Uint8List value) readOnListenFunction = (value) {};
@@ -181,11 +181,6 @@ class SerialPort {
         throw Exception('SetCommMask error');
       }
       _createEvent();
-
-      _readStream = _lookUpEvent(Duration(microseconds: 500));
-      _readStream.listen((event) {
-        readOnListenFunction(event);
-      });
     } else {
       throw Exception('Port has been opened');
     }
@@ -414,24 +409,39 @@ class SerialPort {
     return uint8list;
   }
 
-  /// [readBytesOnListen] can constantly listen data, you can use [onData] to get data.
+  /// [readBytesOnListen] can listen data in polling mode, endless loop, you can use [onData] to get data.
   void readBytesOnListen(int bytesSize, Function(Uint8List value) onData,
-      {void onBefore()?}) {
+      {void onBefore()?,
+      Duration dataPollingInterval = const Duration(microseconds: 500)}) {
     _readBytesSize = bytesSize;
     readOnListenFunction = onData;
     readOnBeforeFunction = onBefore ?? () {};
+
+    _readStream = _lookUpEvent(dataPollingInterval);
+    _readStream!.listen((event) {
+      readOnListenFunction(event);
+    });
   }
 
   /// [writeBytesFromString] will convert String to ANSI Code corresponding to char
   ///
-  /// if you write "hello" in String, PC will send "hello\0" with "\0" automatically.
+  /// if you write "hello" in String, PC will send "hello\0" with "\0" automatically when set includeZeroTerminator true.
   ///
   /// - Unit of [timeout] is ms
-  bool writeBytesFromString(String buffer, {int timeout = 500}) {
+  bool writeBytesFromString(String buffer,
+      {int timeout = 500, bool includeZeroTerminator = true}) {
     final lpBuffer = buffer.toANSI();
     final lpNumberOfBytesWritten = calloc<DWORD>();
+    final int length;
+
+    if (includeZeroTerminator == true) {
+      length = lpBuffer.length + 1;
+    } else {
+      length = lpBuffer.length;
+    }
+
     try {
-      if (WriteFile(handler!, lpBuffer.cast<Uint8>(), lpBuffer.length + 1,
+      if (WriteFile(handler!, lpBuffer.cast<Uint8>(), length,
               lpNumberOfBytesWritten, _over) !=
           TRUE) {
         return _getOverlappedResult(
