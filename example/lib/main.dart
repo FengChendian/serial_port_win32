@@ -45,8 +45,7 @@ class _MyHomePageState extends State<MyHomePage> {
     print(portInfoLists);
     print(ports);
     if (ports.isNotEmpty) {
-      port = SerialPort("COM5",
-          openNow: false, ReadIntervalTimeout: 1, ReadTotalTimeoutConstant: 2);
+      port = SerialPort("COM8", openNow: false);
       port.open();
       // print(port.isOpened);
       // port.readBytesOnListen(16, (value) {
@@ -67,11 +66,12 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _send() async {
-    // print(sendData);
-    print(port.writeBytesFromString("AT"));
-    print(await port.readBytesUntil(Uint8List.fromList("\n".codeUnits)));
-    // var data = await port.readBytesOnce(10);
-    // print(data);
+    if (!port.isOpened) {
+      port.open();
+    }
+    port.writeBytesFromString("AT", includeZeroTerminator: false);
+    print(await port.readBytesUntil(Uint8List.fromList("T".codeUnits)));
+    port.close();
   }
 
   @override

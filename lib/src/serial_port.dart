@@ -490,7 +490,7 @@ class SerialPort {
   ///
   /// - Unit of [timeout] is ms
   bool writeBytesFromString(String buffer,
-      {int timeout = 500, bool includeZeroTerminator = true}) {
+      {int timeout = 500, required bool includeZeroTerminator}) {
     final lpBuffer = buffer.toANSI();
     final lpNumberOfBytesWritten = calloc<DWORD>();
     final int length;

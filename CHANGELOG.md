@@ -1,3 +1,9 @@
+## 1.4.0
+
+- require `includeZeroTerminator` parameter for clear write function.
+- update dependency versions for bugs fixed
+
+
 ## 1.3.0
 
 - fix bugs
