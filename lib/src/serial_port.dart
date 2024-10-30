@@ -18,7 +18,7 @@ class SerialPort {
   final commTimeouts = calloc<COMMTIMEOUTS>();
 
   /// file handle
-  /// [handler] will be [INVALID_HANDLE_VALUE] if failed
+  /// [handler] will be [INVALID_HANDLE_VALUE] if function is failed
   int? handler;
 
   Pointer<DWORD> _bytesRead = calloc<DWORD>();
@@ -28,10 +28,10 @@ class SerialPort {
   /// EventMask
   Pointer<DWORD> _dwCommEvent = calloc<DWORD>();
 
-  /// erros
+  /// errors
   final _errors = calloc<DWORD>();
 
-  /// staus
+  /// status
   final _status = calloc<COMSTAT>();
 
   /// [_keyPath] is registry path which will be opened
@@ -61,14 +61,6 @@ class SerialPort {
     _readBytesSize = value;
   }
 
-  /// [EV_RXCHAR]
-  /// A character was received and placed in the input buffer.
-  static const int EV_RXCHAR = 0x0001;
-
-  /// [ERROR_IO_PENDING]
-  /// Overlapped I/O operation is in progress.
-  static const int ERROR_IO_PENDING = 997;
-
   /// [CLRDTR]
   /// Clears the DTR (data-terminal-ready) signal.
   static const int CLRDTR = 6;
@@ -91,9 +83,9 @@ class SerialPort {
     // ignore: non_constant_identifier_names
     int BaudRate = CBR_115200,
     // ignore: non_constant_identifier_names
-    int Parity = NOPARITY,
+    int Parity = DCB_PARITY.NOPARITY,
     // ignore: non_constant_identifier_names
-    int StopBits = ONESTOPBIT,
+    int StopBits = DCB_STOP_BITS.ONESTOPBIT,
     // ignore: non_constant_identifier_names
     int ByteSize = 8,
     // ignore: non_constant_identifier_names
@@ -159,12 +151,19 @@ class SerialPort {
   void open() {
     /// Do not open a port which has been opened
     if (_isOpened == false) {
-      handler = CreateFile(_portNameUtf16, GENERIC_READ | GENERIC_WRITE, 0,
-          nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
+      handler = CreateFile(
+          _portNameUtf16,
+          GENERIC_ACCESS_RIGHTS.GENERIC_READ |
+              GENERIC_ACCESS_RIGHTS.GENERIC_WRITE,
+          0,
+          nullptr,
+          FILE_CREATION_DISPOSITION.OPEN_EXISTING,
+          FILE_FLAGS_AND_ATTRIBUTES.FILE_FLAG_OVERLAPPED,
+          NULL);
 
       if (handler == INVALID_HANDLE_VALUE) {
         final lastError = GetLastError();
-        if (lastError == ERROR_FILE_NOT_FOUND) {
+        if (lastError == WIN32_ERROR.ERROR_FILE_NOT_FOUND) {
           throw Exception(_portNameUtf16.toDartString() + "is not available");
         } else {
           throw Exception('Open port failed, error is $lastError');
@@ -177,7 +176,7 @@ class SerialPort {
 
       _isOpened = true;
 
-      if (SetCommMask(handler!, EV_RXCHAR) == 0) {
+      if (SetCommMask(handler!, COMM_EVENT_MASK.EV_RXCHAR) == 0) {
         throw Exception('SetCommMask error');
       }
       _createEvent();
@@ -205,7 +204,7 @@ class SerialPort {
           yield data;
         }
       } else {
-        if (GetLastError() == ERROR_IO_PENDING) {
+        if (GetLastError() == WIN32_ERROR.ERROR_IO_PENDING) {
           /// wait io complete, timeout in 500ms
           for (int i = 0; i < 1000; i++) {
             if (WaitForSingleObject(_over.ref.hEvent, 0) == 0) {
@@ -239,9 +238,9 @@ class SerialPort {
     // ignore: non_constant_identifier_names
     int BaudRate = CBR_115200,
     // ignore: non_constant_identifier_names
-    int Parity = NOPARITY,
+    int Parity = DCB_PARITY.NOPARITY,
     // ignore: non_constant_identifier_names
-    int StopBits = ONESTOPBIT,
+    int StopBits = DCB_STOP_BITS.ONESTOPBIT,
     // ignore: non_constant_identifier_names
     int ByteSize = 8,
     // ignore: non_constant_identifier_names
@@ -268,7 +267,8 @@ class SerialPort {
     if (SetCommState(handler!, dcb) == FALSE) {
       throw Exception('SetCommState error');
     } else {
-      PurgeComm(handler!, PURGE_RXCLEAR | PURGE_TXCLEAR);
+      PurgeComm(handler!,
+          PURGE_COMM_FLAGS.PURGE_RXCLEAR | PURGE_COMM_FLAGS.PURGE_TXCLEAR);
     }
   }
 
@@ -303,7 +303,7 @@ class SerialPort {
     _setCommState();
   }
 
-  /// 1 stop bit is [ONESTOPBIT], value is 0
+  /// 1 stop bit is [DCB_STOP_BITS.ONESTOPBIT], value is 0
   /// more docs in https://docs.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-dcb
   // ignore: non_constant_identifier_names
   set StopBits(int stopBits) {
@@ -311,7 +311,7 @@ class SerialPort {
     _setCommState();
   }
 
-  /// You can use [NOPARITY], [ODDPARITY] and so on like win32
+  /// You can use [DCB_PARITY.NOPARITY], [DCB_PARITY.ODDPARITY] and so on like win32
   // ignore: non_constant_identifier_names
   set Parity(int parity) {
     dcb.ref.Parity = parity;
@@ -449,7 +449,7 @@ class SerialPort {
           /// do nothing
         }
       } else {
-        if (GetLastError() == ERROR_IO_PENDING) {
+        if (GetLastError() == WIN32_ERROR.ERROR_IO_PENDING) {
           /// wait io complete, timeout in 500ms
           for (int i = 0; i < 1000; i++) {
             if (WaitForSingleObject(_over.ref.hEvent, 0) == 0) {
@@ -555,9 +555,9 @@ class SerialPort {
     final hKeyPtr = calloc<IntPtr>();
     int lResult;
     try {
-      lResult =
-          RegOpenKeyEx(HKEY_LOCAL_MACHINE, _keyPath, 0, KEY_READ, hKeyPtr);
-      if (lResult != ERROR_SUCCESS) {
+      lResult = RegOpenKeyEx(
+          HKEY_LOCAL_MACHINE, _keyPath, 0, REG_SAM_FLAGS.KEY_READ, hKeyPtr);
+      if (lResult != WIN32_ERROR.ERROR_SUCCESS) {
         // RegCloseKey(hKeyPtr.value);
         throw Exception("RegistryKeyValue Not Found");
       } else {
@@ -597,11 +597,11 @@ class SerialPort {
           nullptr, lpType, lpData, lpcbData);
 
       switch (status) {
-        case ERROR_SUCCESS:
+        case WIN32_ERROR.ERROR_SUCCESS:
           return lpData.cast<Utf16>().toDartString();
-        case ERROR_MORE_DATA:
+        case WIN32_ERROR.ERROR_MORE_DATA:
           throw Exception("ERROR_MORE_DATA");
-        case ERROR_NO_MORE_ITEMS:
+        case WIN32_ERROR.ERROR_NO_MORE_ITEMS:
           return null;
         default:
           throw Exception("Unknown error!");
@@ -671,7 +671,11 @@ class SerialPort {
 
     /// Get Device info handle
     final hDeviceInfo = SetupDiGetClassDevs(
-        classGUID, nullptr, 0, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT);
+        classGUID,
+        nullptr,
+        0,
+        SETUP_DI_GET_CLASS_DEVS_FLAGS.DIGCF_DEVICEINTERFACE |
+            SETUP_DI_GET_CLASS_DEVS_FLAGS.DIGCF_PRESENT);
 
     if (hDeviceInfo != INVALID_HANDLE_VALUE) {
       /// Init device info data
@@ -699,8 +703,13 @@ class SerialPort {
         //     sizeOf<SP_DEVICE_INTERFACE_DETAIL_DATA_>();
 
         try {
-          var hDevKey = SetupDiOpenDevRegKey(hDeviceInfo, devInfoData,
-              DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_READ);
+          var hDevKey = SetupDiOpenDevRegKey(
+              hDeviceInfo,
+              devInfoData,
+              SETUP_DI_PROPERTY_CHANGE_SCOPE.DICS_FLAG_GLOBAL,
+              0,
+              DIREG_DEV,
+              REG_SAM_FLAGS.KEY_READ);
 
           if (hDevKey != INVALID_HANDLE_VALUE) {
             RegQueryValueEx(
