@@ -1,3 +1,8 @@
+## 2.0.1
+
+- add lints to dev dependencies
+- fix type warning
+
 ## 2.0.0
 
 - Add string converter option in `writeBytesFromString`.

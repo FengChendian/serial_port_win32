@@ -440,8 +440,9 @@ class SerialPort {
       final completer = Completer<int>();
 
       // ignore: unused_local_variable
-      final readTimer = Timer.periodic(Duration(microseconds: 100), (timer) {
-        var currentSize = _getDataSizeInQueue();
+      final readTimer =
+          Timer.periodic(Duration(microseconds: 100), (timer) async {
+        var currentSize = await _getDataSizeInQueue();
         if (currentSize == bytesSize || !timeoutTimer.isActive) {
           completer.complete(currentSize);
           timer.cancel();
