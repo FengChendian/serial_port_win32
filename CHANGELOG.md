@@ -1,3 +1,9 @@
+## 2.0.0
+
+- Add string converter option in `writeBytesFromString`.
+- Add new APIs `readBytes` (with timeout) and `readFixedSizeBytes`
+- Remove `readOnListen` because of many potential bug reports for flutter beginner.
+
 ## 1.4.2
 
 - Support pure Dart.
@@ -8,8 +14,8 @@
 
 ## 1.4.0
 
-- Require `includeZeroTerminator` parameter for clear write function.
-- Update dependency versions for bugs fixed.
+- Require `includeZeroTerminator` parameter for unambiguous `string-char` processing.
+- Update `win32` dependency versions for some bugs fixed.
 
 ## 1.3.0
 

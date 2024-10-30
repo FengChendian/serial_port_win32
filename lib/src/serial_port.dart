@@ -5,6 +5,11 @@ import 'package:win32/win32.dart';
 import 'package:ffi/ffi.dart';
 import 'package:collection/collection.dart';
 
+enum StringConverter {
+  nativeUtf8,
+  ANSI,
+}
+
 class SerialPort {
   /// [portName] like COM3
   final String portName;
@@ -45,22 +50,9 @@ class SerialPort {
 
   static final Map<String, SerialPort> _cache = <String, SerialPort>{};
 
-  /// stream data
-  Stream<Uint8List>? _readStream;
-
-  /// [readOnListenFunction] define what  to do when data coming
-  Function(Uint8List value) readOnListenFunction = (value) {};
-
   /// [readOnBeforeFunction] define what  to do when data coming
+  /// a byte will cause a callback
   Function() readOnBeforeFunction = () {};
-
-  /// read data which has size [_readBytesSize]
-  int _readBytesSize = 1;
-
-  /// using [readBytesSize] setting [_readBytesSize]
-  set readBytesSize(int value) {
-    _readBytesSize = value;
-  }
 
   /// [CLRDTR]
   /// Clears the DTR (data-terminal-ready) signal.
@@ -183,54 +175,6 @@ class SerialPort {
       _createEvent();
     } else {
       throw Exception('Port has been opened');
-    }
-  }
-
-  /// [_lookUpEvent] will look up I/O event and read data using stream
-  Stream<Uint8List> _lookUpEvent(Duration interval) async* {
-    int event = 0;
-    Uint8List data;
-    // PurgeComm(handler!, PURGE_RXCLEAR | PURGE_TXCLEAR);
-    while (true) {
-      await Future.delayed(interval);
-      event = WaitCommEvent(handler!, _dwCommEvent, _over);
-      if (event != FALSE) {
-        ClearCommError(handler!, _errors, _status);
-        if (_status.ref.cbInQue < _readBytesSize) {
-          data = await _read(_status.ref.cbInQue);
-        } else {
-          data = await _read(_readBytesSize);
-        }
-        if (data.isNotEmpty) {
-          yield data;
-        }
-      } else {
-        if (GetLastError() == WIN32_ERROR.ERROR_IO_PENDING) {
-          /// wait io complete, timeout in 500ms
-          for (int i = 0; i < 1000; i++) {
-            if (WaitForSingleObject(_over.ref.hEvent, 0) == 0) {
-              ClearCommError(handler!, _errors, _status);
-              if (_status.ref.cbInQue < _readBytesSize) {
-                data = await _read(_status.ref.cbInQue);
-              } else {
-                data = await _read(_readBytesSize);
-              }
-              if (data.isNotEmpty) {
-                yield data;
-              }
-              ResetEvent(_over.ref.hEvent);
-              // break for next read operation.
-              break;
-            } else {
-              ResetEvent(_over.ref.hEvent);
-              // continue waiting
-              await Future.delayed(interval);
-            }
-          }
-        } else {
-          /// Fallback
-        }
-      }
     }
   }
 
@@ -412,34 +356,126 @@ class SerialPort {
     return uint8list;
   }
 
-  /// [readBytesOnListen] can listen data in polling mode, endless loop, you can use [onData] to get data.
-  /// - [dataPollingInterval] set data polling interval
-  void readBytesOnListen(int bytesSize, Function(Uint8List value) onData,
-      {void onBefore()?,
-      Duration dataPollingInterval = const Duration(microseconds: 500)}) {
-    _readBytesSize = bytesSize;
-    readOnListenFunction = onData;
-    readOnBeforeFunction = onBefore ?? () {};
-
-    _readStream = _lookUpEvent(dataPollingInterval);
-    _readStream!.listen((event) {
-      readOnListenFunction(event);
-    });
-  }
-
-  // Future<Uint8List>
-
-  /// [readBytesUntil] will read until an [expected] sequence is found
-  Future<Uint8List> readBytesUntil(Uint8List expected,
+  /// [_getDataSizeInQueue] will return received data size in queue
+  Future<int> _getDataSizeInQueue(
       {Duration dataPollingInterval =
           const Duration(microseconds: 500)}) async {
-    /// either [readBytesOnListen] or [readBytesUntil]
-    if (_readStream != null) {
-      throw Exception("You have used listen function");
-    }
+    int event = 0;
 
+    while (true) {
+      event = WaitCommEvent(handler!, _dwCommEvent, _over);
+      if (event != FALSE) {
+        ClearCommError(handler!, _errors, _status);
+        return _status.ref.cbInQue;
+      } else {
+        if (GetLastError() == WIN32_ERROR.ERROR_IO_PENDING) {
+          if (WaitForSingleObject(_over.ref.hEvent, 0) == 0) {
+            ClearCommError(handler!, _errors, _status);
+            var cbInQue = _status.ref.cbInQue;
+            ResetEvent(_over.ref.hEvent);
+            return cbInQue;
+          } else {
+            ResetEvent(_over.ref.hEvent);
+          }
+        } else {
+          /// Fallback
+        }
+      }
+      await Future.delayed(dataPollingInterval);
+    }
+  }
+
+  Future<void> _checkDataSizeInQueue(int expectedSize,
+      {Duration dataPollingInterval =
+          const Duration(microseconds: 500)}) async {
+    int currentSize;
+    while (true) {
+      currentSize = await _getDataSizeInQueue();
+      if (currentSize == expectedSize) {
+        return;
+      } else {
+        await Future.delayed(dataPollingInterval);
+      }
+    }
+  }
+
+  /// [readFixedSizeBytes] will always read until readData.length == bytesSize.
+  /// [dataPollingInterval] is used for await to execute UI, default set to 500 μs.
+  Future<Uint8List> readFixedSizeBytes(int bytesSize,
+      {Duration dataPollingInterval =
+          const Duration(microseconds: 500)}) async {
     int event = 0;
     List<int> readData = List<int>.empty(growable: true);
+
+    while (true) {
+      event = WaitCommEvent(handler!, _dwCommEvent, _over);
+      if (event != FALSE) {
+        ClearCommError(handler!, _errors, _status);
+        if (_status.ref.cbInQue != 0) {
+          readData.add((await _read(1))[0]);
+        } else {
+          /// do nothing
+        }
+      } else {
+        if (GetLastError() == WIN32_ERROR.ERROR_IO_PENDING) {
+          if (WaitForSingleObject(_over.ref.hEvent, 0) == 0) {
+            ClearCommError(handler!, _errors, _status);
+            if (_status.ref.cbInQue != 0) {
+              readData.add((await _read(1))[0]);
+            } else {
+              /// do nothing
+            }
+            ResetEvent(_over.ref.hEvent);
+          } else {
+            ResetEvent(_over.ref.hEvent);
+          }
+        } else {
+          /// Fallback
+        }
+      }
+
+      if (readData.length == bytesSize) {
+        break;
+      }
+      await Future.delayed(dataPollingInterval);
+    }
+    return Uint8List.fromList(readData);
+  }
+
+  /// If [timeout] is none, will read until specified [bytesSize], same as [readFixedSizeBytes] (may cause deadlock).
+  /// Or read until [timeout] or specified [bytesSize]
+  Future<Uint8List> readBytes(int bytesSize,
+      {required Duration? timeout}) async {
+    if (timeout == null) {
+      return readFixedSizeBytes(bytesSize);
+    } else {
+      final timeoutTimer = Timer(timeout, () {});
+
+      final completer = Completer<int>();
+
+      // ignore: unused_local_variable
+      final readTimer = Timer.periodic(Duration(microseconds: 100), (timer) {
+        var currentSize = _getDataSizeInQueue();
+        if (currentSize == bytesSize || !timeoutTimer.isActive) {
+          completer.complete(currentSize);
+          timer.cancel();
+        }
+      });
+      final dataSizeInQueue = await completer.future;
+      return readFixedSizeBytes(
+          dataSizeInQueue <= bytesSize ? dataSizeInQueue : bytesSize);
+    }
+  }
+
+  /// [readBytesUntil] will read until an [expected] sequence is found
+  Future<Uint8List> readBytesUntil(
+    Uint8List expectedList, {
+    Duration dataPollingInterval = const Duration(microseconds: 500),
+  }) async {
+    int event = 0;
+    List<int> readData = List<int>.empty(growable: true);
+
+    final expected = expectedList.toList(growable: false);
     final expectedListLength = expected.length;
 
     while (true) {
@@ -476,7 +512,7 @@ class SerialPort {
       if (readData.length < expectedListLength) {
         continue;
       } else {
-        if (ListEquality().equals(
+        if (ListEquality<int>().equals(
             readData.sublist(readData.length - expectedListLength), expected)) {
           return Uint8List.fromList(readData);
         } else {
@@ -492,11 +528,21 @@ class SerialPort {
   /// if you write "hello" in String, PC will send "hello\0" with "\0" automatically when set includeZeroTerminator true.
   ///
   /// - Unit of [timeout] is ms
-  bool writeBytesFromString(String buffer,
-      {int timeout = 500, required bool includeZeroTerminator}) {
-    final lpBuffer = buffer.toANSI();
+  /// [stringConverter] decides how to convert your string to uint8 code unit
+  Future<bool> writeBytesFromString(String buffer,
+      {int timeout = 500,
+      required bool includeZeroTerminator,
+      StringConverter stringConverter = StringConverter.nativeUtf8}) async {
+    /// convert dart string to code unit array
+    final Pointer<Utf8> lpBuffer;
     final lpNumberOfBytesWritten = calloc<DWORD>();
     final int length;
+
+    if (stringConverter == StringConverter.nativeUtf8) {
+      lpBuffer = buffer.toNativeUtf8();
+    } else {
+      lpBuffer = buffer.toANSI();
+    }
 
     if (includeZeroTerminator == true) {
       length = lpBuffer.length + 1;
@@ -520,7 +566,8 @@ class SerialPort {
 
   /// [writeBytesFromUint8List] will write Uint8List directly, please ensure the last
   /// of list is 0 terminator if you want to convert it to char.
-  bool writeBytesFromUint8List(Uint8List uint8list, {int timeout = 500}) {
+  Future<bool> writeBytesFromUint8List(Uint8List uint8list,
+      {int timeout = 500}) async {
     final lpBuffer = uint8list.allocatePointer();
     final lpNumberOfBytesWritten = calloc<DWORD>();
 

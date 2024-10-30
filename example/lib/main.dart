@@ -47,20 +47,6 @@ class _MyHomePageState extends State<MyHomePage> {
     if (ports.isNotEmpty) {
       port = SerialPort("COM8", openNow: false);
       port.open();
-      // print(port.isOpened);
-      // port.readBytesOnListen(16, (value) {
-      //   data = String.fromCharCodes(value);
-      //   print(DateTime.now());
-      //   print(data);
-      //   setState(() {});
-      // });
-      //
-      // port.readBytesOnListen(16, (value) {
-      //   data = String.fromCharCodes(value);
-      //   print(DateTime.now());
-      //   print(data);
-      //   setState(() {});
-      // });
     }
     setState(() {});
   }
@@ -69,8 +55,35 @@ class _MyHomePageState extends State<MyHomePage> {
     if (!port.isOpened) {
       port.open();
     }
-    port.writeBytesFromString("AT", includeZeroTerminator: false);
-    print(await port.readBytesUntil(Uint8List.fromList("T".codeUnits)));
+
+    print('⬇---------------------------- read');
+    await port.writeBytesFromString("😄我AT", includeZeroTerminator: false, stringConverter: StringConverter.nativeUtf8);
+    var read = port.readBytes(18, timeout: Duration(milliseconds: 10)).then((onValue) => print(onValue));
+    await Future.delayed(Duration(milliseconds: 5));
+    await port.writeBytesFromString("😄我AT", includeZeroTerminator: false, stringConverter: StringConverter.nativeUtf8);
+
+    await read;
+    print('⬇---------------------------- time out read, read all data in queue (<= 18 bytes)');
+    await port.writeBytesFromString("😄AT", includeZeroTerminator: false, stringConverter: StringConverter.nativeUtf8);
+    var timeOutRead = port.readBytes(18, timeout: Duration(milliseconds: 10)).then((onValue) => print(onValue));
+    await port.writeBytesFromString("😄我AT", includeZeroTerminator: false, stringConverter: StringConverter.nativeUtf8);
+
+    await timeOutRead;
+
+    print('⬇---------------------------- read successful without timeout, but want 8 bytes');
+    await port.writeBytesFromString("😄AT", includeZeroTerminator: false, stringConverter: StringConverter.nativeUtf8);
+    var wantedBytesRead = port.readBytes(8, timeout: Duration(milliseconds: 10)).then((onValue) => print(onValue));
+    await port.writeBytesFromString("😄我AT", includeZeroTerminator: false, stringConverter: StringConverter.nativeUtf8);
+
+    await wantedBytesRead;
+
+    print('⬇---------------------------- read until specified fixed size (8 bytes), may cause deadlock');
+    await port.writeBytesFromString("😄AT", includeZeroTerminator: false, stringConverter: StringConverter.nativeUtf8);
+    var fixedBytesRead = port.readFixedSizeBytes(2).then((onValue) => print(onValue));
+    await port.writeBytesFromString("😄我AT", includeZeroTerminator: false, stringConverter: StringConverter.nativeUtf8);
+
+    await fixedBytesRead;
+
     port.close();
   }
 

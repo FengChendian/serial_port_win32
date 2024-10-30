@@ -14,12 +14,12 @@ print(ports);
 /// result like [COM3, COM4]
 ```
 
-### Get Ports with more messages (Experiment)
+### Get Ports with more messages (Experimental)
+
 ```dart
 final List<PortInfo> ports = SerialPort.getPortsWithFullMessages();
 print(ports); 
 /// print [Port Name: COM3, FriendlyName: 蓝牙链接上的标准串行 (COM3), hardwareID: BTHENUM\{00001101-0000-1000-8000-00803f9b55fb}_LOCALMFG&0000, manufactureName: Microsoft]
-
 PortInfo({
 required this.portName,
 required this.friendlyName,
@@ -28,7 +28,8 @@ required this.manufactureName,
 });
 ```
 
-### Create Serial Port
+### Create Serial Port Instance
+
 The port instance is **Singleton Pattern**. Don't re-create port for same Com name.
 
 ```dart
@@ -52,13 +53,15 @@ port.ReadIntervalTimeout = 10;
 ### Read
 
 ```dart
-port.readBytesSize = 8;
-port.readOnListenFunction = (value) {
-print(value);
+print(await port.readBytesUntil(Uint8List.fromList("T".codeUnits))); /// '\0' is not included
+/// or
+var read = port.readBytes(18, timeout: Duration(milliseconds: 10)).then((onValue) => print(onValue));
+await read;
+/// or
+var fixedBytesRead = port.readFixedSizeBytes(2).then((onValue) => print(onValue));
+await fixedBytesRead;
+/// see more in small example
 };
-// or
-// can only choose one function
-print(await port.readBytesUntil(Uint8List.fromList("\n".codeUnits)));
 ```
 
 ### Write
@@ -67,14 +70,14 @@ print(await port.readBytesUntil(Uint8List.fromList("\n".codeUnits)));
 
 ```dart
 String buffer = "hello";
-port.writeBytesFromString(buffer);
+await port.writeBytesFromString(buffer, includeZeroTerminator: false, stringConverter: StringConverter.nativeUtf8);
 ```
 
 #### Write Uint8List
 
 ```dart
 final uint8_data = Uint8List.fromList([1, 2, 3, 4, 5, 6]);
-print(port.writeBytesFromUint8List(uint8_data));
+print(await port.writeBytesFromUint8List(uint8_data));
 ```
 
 ### Get Port Connection Status
@@ -119,7 +122,7 @@ If you want to read or write strings using serial, be careful to handle the term
 
 Although in most cases, like "Hello\0" (68 65 6C 6C 6F 00) and "Hello"(68 65 6C 6C 6F) both can be identified by computer.
 
-### Small Example
+### Some Examples
 
 ```dart
 import 'package:serial_port_win32/src/serial_port.dart';
@@ -133,5 +136,41 @@ void main() {
       port.StopBits = ONESTOPBIT;
       port.close();
     }
+}
+
+void _send() async {
+  if (!port.isOpened) {
+    port.open();
+  }
+
+  print('⬇---------------------------- read');
+  await port.writeBytesFromString("😄我AT", includeZeroTerminator: false, stringConverter: StringConverter.nativeUtf8);
+  var read = port.readBytes(18, timeout: Duration(milliseconds: 10)).then((onValue) => print(onValue));
+  await Future.delayed(Duration(milliseconds: 5));
+  await port.writeBytesFromString("😄我AT", includeZeroTerminator: false, stringConverter: StringConverter.nativeUtf8);
+
+  await read;
+  print('⬇---------------------------- time out read, read all data in queue (<= 18 bytes)');
+  await port.writeBytesFromString("😄AT", includeZeroTerminator: false, stringConverter: StringConverter.nativeUtf8);
+  var timeOutRead = port.readBytes(18, timeout: Duration(milliseconds: 10)).then((onValue) => print(onValue));
+  await port.writeBytesFromString("😄我AT", includeZeroTerminator: false, stringConverter: StringConverter.nativeUtf8);
+
+  await timeOutRead;
+
+  print('⬇---------------------------- read successful without timeout, but want 8 bytes');
+  await port.writeBytesFromString("😄AT", includeZeroTerminator: false, stringConverter: StringConverter.nativeUtf8);
+  var wantedBytesRead = port.readBytes(8, timeout: Duration(milliseconds: 10)).then((onValue) => print(onValue));
+  await port.writeBytesFromString("😄我AT", includeZeroTerminator: false, stringConverter: StringConverter.nativeUtf8);
+
+  await wantedBytesRead;
+
+  print('⬇---------------------------- read until specified fixed size (8 bytes), may cause deadlock');
+  await port.writeBytesFromString("😄AT", includeZeroTerminator: false, stringConverter: StringConverter.nativeUtf8);
+  var fixedBytesRead = port.readFixedSizeBytes(2).then((onValue) => print(onValue));
+  await port.writeBytesFromString("😄我AT", includeZeroTerminator: false, stringConverter: StringConverter.nativeUtf8);
+
+  await fixedBytesRead;
+
+  port.close();
 }
 ```
