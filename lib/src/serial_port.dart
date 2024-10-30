@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:ffi';
+import 'dart:typed_data';
 import 'package:win32/win32.dart';
 import 'package:ffi/ffi.dart';
-import 'package:flutter/foundation.dart';
+import 'package:collection/collection.dart';
 
 class SerialPort {
   /// [portName] like COM3
@@ -166,7 +167,7 @@ class SerialPort {
         if (lastError == WIN32_ERROR.ERROR_FILE_NOT_FOUND) {
           throw Exception(_portNameUtf16.toDartString() + "is not available");
         } else {
-          throw Exception('Open port failed, error is $lastError');
+          throw Exception('Open port failed, win32 error code is $lastError');
         }
       }
 
@@ -426,6 +427,8 @@ class SerialPort {
     });
   }
 
+  // Future<Uint8List>
+
   /// [readBytesUntil] will read until an [expected] sequence is found
   Future<Uint8List> readBytesUntil(Uint8List expected,
       {Duration dataPollingInterval =
@@ -473,7 +476,7 @@ class SerialPort {
       if (readData.length < expectedListLength) {
         continue;
       } else {
-        if (listEquals(
+        if (ListEquality().equals(
             readData.sublist(readData.length - expectedListLength), expected)) {
           return Uint8List.fromList(readData);
         } else {

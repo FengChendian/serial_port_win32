@@ -1,11 +1,15 @@
+## 1.4.2
+
+- Support pure Dart.
+
 ## 1.4.1
 
-- migrate variables to latest win32 definitions
+- Migrate variables to latest win32 definitions.
 
 ## 1.4.0
 
-- require `includeZeroTerminator` parameter for clear write function.
-- update dependency versions for bugs fixed
+- Require `includeZeroTerminator` parameter for clear write function.
+- Update dependency versions for bugs fixed.
 
 ## 1.3.0
 
