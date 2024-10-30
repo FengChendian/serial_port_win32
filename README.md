@@ -62,7 +62,6 @@ print(result);
 var fixedBytesRead = port.readFixedSizeBytes(2)..then((onValue) => print(onValue));
 await fixedBytesRead;
 /// see more in small example
-};
 ```
 
 ### Write
@@ -123,7 +122,7 @@ If you want to read or write strings using serial, be careful to handle the term
 
 Although in most cases, like "Hello\0" (68 65 6C 6C 6F 00) and "Hello"(68 65 6C 6C 6F) both can be identified by computer.
 
-### Some Examples
+### Small Example
 
 ```dart
 import 'package:serial_port_win32/src/serial_port.dart';
@@ -196,3 +195,9 @@ void _send() async {
   port.close();
 }
 ```
+
+## Tested Ciruit
+
+The code is tested by a UART-USB Conveter. **TX** and **RX** are connected together for local loopback.
+
+![header](./docs/img/header.png)
