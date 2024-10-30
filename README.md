@@ -52,6 +52,15 @@ port.ReadIntervalTimeout = 10;
 
 ### Read
 
+There are several methods to read bytes from serial port.
+
+- `readBytesUntil`
+  - [readBytesUntil] will read until an [expected] sequence is found
+- `readBytes`
+  - General Read with the timeout parameter.
+- `readFixedSizeBytes`
+  - [readFixedSizeBytes] will always read until readData.length == bytesSize.
+
 ```dart
 print(await port.readBytesUntil(Uint8List.fromList("T".codeUnits))); /// '\0' is not included
 /// or
@@ -200,4 +209,4 @@ void _send() async {
 
 The code is tested by a UART-USB Conveter. **TX** and **RX** are connected together for local loopback.
 
-![header](./docs/img/header.png)
+![header](doc/img/header.png)

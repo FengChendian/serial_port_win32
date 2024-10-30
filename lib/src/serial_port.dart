@@ -337,7 +337,7 @@ class SerialPort {
     EscapeCommFunction(handler!, flag);
   }
 
-  /// [_read] is a fundamental read function/
+  /// [_read] is a fundamental read function
   Future<Uint8List> _read(int bytesSize) async {
     final lpBuffer = calloc<Uint8>(bytesSize);
     Uint8List uint8list;
@@ -382,20 +382,6 @@ class SerialPort {
         }
       }
       await Future.delayed(dataPollingInterval);
-    }
-  }
-
-  Future<void> _checkDataSizeInQueue(int expectedSize,
-      {Duration dataPollingInterval =
-          const Duration(microseconds: 500)}) async {
-    int currentSize;
-    while (true) {
-      currentSize = await _getDataSizeInQueue();
-      if (currentSize == expectedSize) {
-        return;
-      } else {
-        await Future.delayed(dataPollingInterval);
-      }
     }
   }
 
