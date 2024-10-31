@@ -108,7 +108,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     await fixedBytesRead;
 
-    port.close();
+    // port.close();
   }
 
   @override

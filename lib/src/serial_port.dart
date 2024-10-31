@@ -25,7 +25,7 @@ class SerialPort {
 
   /// file handle
   /// [handler] will be [INVALID_HANDLE_VALUE] if function is failed
-  int? handler;
+  int handler = INVALID_HANDLE_VALUE;
 
   Pointer<DWORD> _bytesRead = calloc<DWORD>();
 
@@ -43,10 +43,20 @@ class SerialPort {
   /// [_keyPath] is registry path which will be opened
   static final _keyPath = TEXT("HARDWARE\\DEVICEMAP\\SERIALCOMM");
 
-  /// [isOpened] is true when port was opened, [CreateFile] function will open a port.
-  bool _isOpened = false;
-
-  bool get isOpened => _isOpened;
+  bool get isOpened {
+    if (handler != INVALID_HANDLE_VALUE) {
+      if (ClearCommError(handler, _errors, _status) == 0) {
+        var error = GetLastError();
+        /// Device is disconnected
+        close();
+        throw Exception(
+            '${_portNameUtf16.toDartString()} is disconnected, win32 Error Code is $error');
+      }
+      return true;
+    } else {
+      return false;
+    }
+  }
 
   static final Map<String, SerialPort> _cache = <String, SerialPort>{};
 
@@ -143,7 +153,7 @@ class SerialPort {
   /// [open] can be called when handler is null or handler is closed
   void open() {
     /// Do not open a port which has been opened
-    if (_isOpened == false) {
+    if (isOpened == false) {
       handler = CreateFile(
           _portNameUtf16,
           GENERIC_ACCESS_RIGHTS.GENERIC_READ |
@@ -157,7 +167,7 @@ class SerialPort {
       if (handler == INVALID_HANDLE_VALUE) {
         final lastError = GetLastError();
         if (lastError == WIN32_ERROR.ERROR_FILE_NOT_FOUND) {
-          throw Exception(_portNameUtf16.toDartString() + "is not available");
+          throw Exception(_portNameUtf16.toDartString() + " is not available");
         } else {
           throw Exception('Open port failed, win32 error code is $lastError');
         }
@@ -167,9 +177,7 @@ class SerialPort {
 
       _setCommTimeouts();
 
-      _isOpened = true;
-
-      if (SetCommMask(handler!, COMM_EVENT_MASK.EV_RXCHAR) == 0) {
+      if (SetCommMask(handler, COMM_EVENT_MASK.EV_RXCHAR) == 0) {
         throw Exception('SetCommMask error');
       }
       _createEvent();
@@ -209,17 +217,17 @@ class SerialPort {
 
   /// When [dcb] struct is changed, you must call [_setCommState] to update settings.
   void _setCommState() {
-    if (SetCommState(handler!, dcb) == FALSE) {
+    if (SetCommState(handler, dcb) == FALSE) {
       throw Exception('SetCommState error');
     } else {
-      PurgeComm(handler!,
+      PurgeComm(handler,
           PURGE_COMM_FLAGS.PURGE_RXCLEAR | PURGE_COMM_FLAGS.PURGE_TXCLEAR);
     }
   }
 
   /// When [commTimeouts] struct is changed, you must call [_setCommTimeouts] to update settings.
   void _setCommTimeouts() {
-    if (SetCommTimeouts(handler!, commTimeouts) == FALSE) {
+    if (SetCommTimeouts(handler, commTimeouts) == FALSE) {
       throw Exception('SetCommTimeouts error');
     }
   }
@@ -261,11 +269,6 @@ class SerialPort {
   set Parity(int parity) {
     dcb.ref.Parity = parity;
     _setCommState();
-  }
-
-  /// change [isOpened] value if necessary
-  set openStatus(bool status) {
-    _isOpened = status;
   }
 
   /// [ReadIntervalTimeout]
@@ -334,7 +337,7 @@ class SerialPort {
   /// [setFlowControlSignal] can set DTR and RTS signal
   /// Controlling DTR and RTS
   void setFlowControlSignal(int flag) {
-    EscapeCommFunction(handler!, flag);
+    EscapeCommFunction(handler, flag);
   }
 
   /// [_read] is a fundamental read function
@@ -343,7 +346,7 @@ class SerialPort {
     Uint8List uint8list;
     try {
       readOnBeforeFunction();
-      ReadFile(handler!, lpBuffer, bytesSize, _bytesRead, _over);
+      ReadFile(handler, lpBuffer, bytesSize, _bytesRead, _over);
     } finally {
       /// Uint16 need to be casted for real Uint8 data
       var u8l = lpBuffer.asTypedList(_bytesRead.value);
@@ -363,14 +366,14 @@ class SerialPort {
     int event = 0;
 
     while (true) {
-      event = WaitCommEvent(handler!, _dwCommEvent, _over);
+      event = WaitCommEvent(handler, _dwCommEvent, _over);
       if (event != FALSE) {
-        ClearCommError(handler!, _errors, _status);
+        ClearCommError(handler, _errors, _status);
         return _status.ref.cbInQue;
       } else {
         if (GetLastError() == WIN32_ERROR.ERROR_IO_PENDING) {
           if (WaitForSingleObject(_over.ref.hEvent, 0) == 0) {
-            ClearCommError(handler!, _errors, _status);
+            ClearCommError(handler, _errors, _status);
             var cbInQue = _status.ref.cbInQue;
             ResetEvent(_over.ref.hEvent);
             return cbInQue;
@@ -394,9 +397,9 @@ class SerialPort {
     List<int> readData = List<int>.empty(growable: true);
 
     while (true) {
-      event = WaitCommEvent(handler!, _dwCommEvent, _over);
+      event = WaitCommEvent(handler, _dwCommEvent, _over);
       if (event != FALSE) {
-        ClearCommError(handler!, _errors, _status);
+        ClearCommError(handler, _errors, _status);
         if (_status.ref.cbInQue != 0) {
           readData.add((await _read(1))[0]);
         } else {
@@ -405,7 +408,7 @@ class SerialPort {
       } else {
         if (GetLastError() == WIN32_ERROR.ERROR_IO_PENDING) {
           if (WaitForSingleObject(_over.ref.hEvent, 0) == 0) {
-            ClearCommError(handler!, _errors, _status);
+            ClearCommError(handler, _errors, _status);
             if (_status.ref.cbInQue != 0) {
               readData.add((await _read(1))[0]);
             } else {
@@ -466,9 +469,9 @@ class SerialPort {
     final expectedListLength = expected.length;
 
     while (true) {
-      event = WaitCommEvent(handler!, _dwCommEvent, _over);
+      event = WaitCommEvent(handler, _dwCommEvent, _over);
       if (event != FALSE) {
-        ClearCommError(handler!, _errors, _status);
+        ClearCommError(handler, _errors, _status);
         if (_status.ref.cbInQue != 0) {
           readData.add((await _read(1))[0]);
         } else {
@@ -479,7 +482,7 @@ class SerialPort {
           /// wait io complete, timeout in 500ms
           for (int i = 0; i < 1000; i++) {
             if (WaitForSingleObject(_over.ref.hEvent, 0) == 0) {
-              ClearCommError(handler!, _errors, _status);
+              ClearCommError(handler, _errors, _status);
               if (_status.ref.cbInQue != 0) {
                 readData.add((await _read(1))[0]);
               } else {}
@@ -538,11 +541,11 @@ class SerialPort {
     }
 
     try {
-      if (WriteFile(handler!, lpBuffer.cast<Uint8>(), length,
+      if (WriteFile(handler, lpBuffer.cast<Uint8>(), length,
               lpNumberOfBytesWritten, _over) !=
           TRUE) {
         return _getOverlappedResult(
-            handler!, _over, lpNumberOfBytesWritten, timeout);
+            handler, _over, lpNumberOfBytesWritten, timeout);
       }
       return true;
     } finally {
@@ -559,12 +562,12 @@ class SerialPort {
     final lpNumberOfBytesWritten = calloc<DWORD>();
 
     try {
-      if (WriteFile(handler!, lpBuffer, uint8list.length,
-              lpNumberOfBytesWritten, _over) !=
+      if (WriteFile(handler, lpBuffer, uint8list.length, lpNumberOfBytesWritten,
+              _over) !=
           TRUE) {
         /// Overlapped will cause IO_PENDING
         return _getOverlappedResult(
-            handler!, _over, lpNumberOfBytesWritten, timeout);
+            handler, _over, lpNumberOfBytesWritten, timeout);
       }
       return true;
     } finally {
@@ -824,8 +827,8 @@ class SerialPort {
 
   /// [close] port which was opened
   void close() {
-    CloseHandle(handler!);
-    _isOpened = false;
+    CloseHandle(handler);
+    handler = INVALID_HANDLE_VALUE;
   }
 
   /// [closeOnListen[ let you can close onListen function before closing port and
@@ -841,8 +844,7 @@ class SerialPort {
     StreamSubscription _closeSubscription =
         _closeController.stream.listen((event) {});
     try {
-      CloseHandle(handler!);
-      _isOpened = false;
+      CloseHandle(handler);
     } catch (e) {
       _closeSink.addError(e.toString());
     } finally {
