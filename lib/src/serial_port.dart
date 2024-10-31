@@ -43,10 +43,12 @@ class SerialPort {
   /// [_keyPath] is registry path which will be opened
   static final _keyPath = TEXT("HARDWARE\\DEVICEMAP\\SERIALCOMM");
 
+  /// get COM status
   bool get isOpened {
     if (handler != INVALID_HANDLE_VALUE) {
       if (ClearCommError(handler, _errors, _status) == 0) {
         var error = GetLastError();
+
         /// Device is disconnected
         close();
         throw Exception(

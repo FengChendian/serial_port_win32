@@ -33,7 +33,7 @@ required this.manufactureName,
 The port instance is **Singleton Pattern**. Don't re-create port for same Com name.
 
 ```dart
-final port = SerialPort("COM5", openNow: false, ByteSize: 8, ReadIntervalTimeout: 1, ReadTotalTimeoutConstant: 2);
+final port = SerialPort("COM5", openNow: true, ByteSize: 8);
 // port.open()
 port.openWithSettings(BaudRate: CBR_115200);
 // final port = SerialPort("COM5"); /// auto open with default settings

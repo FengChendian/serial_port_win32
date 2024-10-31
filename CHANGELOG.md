@@ -1,3 +1,7 @@
+## 2.1.0
+
+- Check if COM is disconnected when use `isOpened`.
+
 ## 2.0.1
 
 - add lints to dev dependencies
