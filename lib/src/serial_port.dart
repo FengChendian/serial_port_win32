@@ -10,22 +10,6 @@ enum StringConverter {
   ANSI,
 }
 
-typedef ThreadProcNative = Int Function();
-
-base class DEV_BROADCAST_PORT_ extends Struct {
-  @Uint32()
-  external int dbcp_size;
-
-  @Uint32()
-  external int dbcp_devicetype;
-
-  @Uint32()
-  external int dbcp_reserved;
-
-  @Array(1)
-  external Array<Uint16> _dbcc_name;
-}
-
 class SerialPort {
   /// [portName] like COM3
   final String portName;
