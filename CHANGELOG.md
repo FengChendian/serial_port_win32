@@ -1,6 +1,9 @@
 ## 2.1.0
 
 - Check if COM is disconnected when use `isOpened`.
+## 2.0.2
+
+- fix setCommState Error
 
 ## 2.0.1
 

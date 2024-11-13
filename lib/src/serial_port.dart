@@ -10,6 +10,22 @@ enum StringConverter {
   ANSI,
 }
 
+typedef ThreadProcNative = Int Function();
+
+base class DEV_BROADCAST_PORT_ extends Struct {
+  @Uint32()
+  external int dbcp_size;
+
+  @Uint32()
+  external int dbcp_devicetype;
+
+  @Uint32()
+  external int dbcp_reserved;
+
+  @Array(1)
+  external Array<Uint16> _dbcc_name;
+}
+
 class SerialPort {
   /// [portName] like COM3
   final String portName;
@@ -18,7 +34,7 @@ class SerialPort {
   final LPWSTR _portNameUtf16;
 
   /// [dcb] is win32 [DCB] struct
-  final dcb = calloc<DCB>();
+  final dcb = calloc<DCB>()..ref.DCBlength = sizeOf<DCB>();
 
   /// win32 [COMMTIMEOUTS] struct
   final commTimeouts = calloc<COMMTIMEOUTS>();
@@ -153,7 +169,7 @@ class SerialPort {
   }
 
   /// [open] can be called when handler is null or handler is closed
-  void open() {
+  void open() async {
     /// Do not open a port which has been opened
     if (isOpened == false) {
       handler = CreateFile(
@@ -173,6 +189,11 @@ class SerialPort {
         } else {
           throw Exception('Open port failed, win32 error code is $lastError');
         }
+      }
+
+      if (GetCommState(handler, dcb) == FALSE) {
+        CloseHandle(handler);
+        throw Exception('GetCommState failed');
       }
 
       _setCommState();
@@ -220,7 +241,8 @@ class SerialPort {
   /// When [dcb] struct is changed, you must call [_setCommState] to update settings.
   void _setCommState() {
     if (SetCommState(handler, dcb) == FALSE) {
-      throw Exception('SetCommState error');
+      throw Exception(
+          'SetCommState error, win32 error code is ${GetLastError()}');
     } else {
       PurgeComm(handler,
           PURGE_COMM_FLAGS.PURGE_RXCLEAR | PURGE_COMM_FLAGS.PURGE_TXCLEAR);
@@ -669,7 +691,7 @@ class SerialPort {
     try {
       hKey = _getRegistryKeyValue();
     } on Exception {
-      return List.empty();
+      return portsList;
     }
 
     /// The index of the value to be retrieved.

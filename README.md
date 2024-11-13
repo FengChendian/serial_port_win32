@@ -165,15 +165,18 @@ void _send() async {
   Uint8List readUint8List = await read;
   print('await result: $readUint8List');
 
-  print('⬇---------------------------- time out read,try to read **18 bytes** data in queue (read <= 18 bytes)');
+  print(
+          '⬇---------------------------- time out read,try to read **18 bytes** data in queue (read <= 18 bytes)');
   await port.writeBytesFromString("😄AT",
-      includeZeroTerminator: false,
-      stringConverter: StringConverter.nativeUtf8);
+          includeZeroTerminator: false,
+          stringConverter: StringConverter.nativeUtf8);
   var timeOutRead = port.readBytes(18, timeout: Duration(milliseconds: 10))
     ..then((onValue) => print(onValue));
+  /// timeout
+  await Future.delayed(Duration(milliseconds: 15));
   await port.writeBytesFromString("😄我AT",
-      includeZeroTerminator: false,
-      stringConverter: StringConverter.nativeUtf8);
+          includeZeroTerminator: false,
+          stringConverter: StringConverter.nativeUtf8);
 
   await timeOutRead;
 

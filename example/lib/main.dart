@@ -45,7 +45,7 @@ class _MyHomePageState extends State<MyHomePage> {
     print(portInfoLists);
     print(ports);
     if (ports.isNotEmpty) {
-      port = SerialPort("COM8", openNow: false);
+      port = SerialPort("COM5", openNow: false);
       port.open();
     }
     setState(() {});
@@ -76,6 +76,9 @@ class _MyHomePageState extends State<MyHomePage> {
         stringConverter: StringConverter.nativeUtf8);
     var timeOutRead = port.readBytes(18, timeout: Duration(milliseconds: 10))
       ..then((onValue) => print(onValue));
+
+    /// timeout
+    await Future.delayed(Duration(milliseconds: 15));
     await port.writeBytesFromString("😄我AT",
         includeZeroTerminator: false,
         stringConverter: StringConverter.nativeUtf8);
