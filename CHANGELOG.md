@@ -1,12 +1,14 @@
+## 2.1.2
+
+- update changelogs
+
+## 2.1.1
+
+- fix setCommState Error, add getCommState before set
+
 ## 2.1.0
 
 - Check if COM is disconnected when use `isOpened`.
-## 2.1.1
-
-- fix setCommState Error
-
-## 2.1.0
-
 - update dependencies
 
 ## 2.0.1
