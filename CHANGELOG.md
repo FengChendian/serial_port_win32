@@ -1,3 +1,7 @@
+## 2.1.7
+
+- fix static analysis
+
 ## 2.1.6
 
 - add status check when set BaudRate, StopBits, etc

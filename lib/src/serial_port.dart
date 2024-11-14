@@ -429,7 +429,7 @@ class SerialPort {
     var cbInQue = 0;
 
     while (true) {
-      cbInQue = await _getDataSizeInQueue();
+      cbInQue = _getDataSizeInQueue();
 
       if (cbInQue >= bytesSize) {
         break;
@@ -454,8 +454,8 @@ class SerialPort {
 
       // ignore: unused_local_variable
       final readTimer = Timer.periodic(dataPollingInterval, (timer) async {
-        var currentSize = await _getDataSizeInQueue();
-        if (currentSize == bytesSize || !timeoutTimer.isActive) {
+        var currentSize = _getDataSizeInQueue();
+        if (currentSize >= bytesSize || !timeoutTimer.isActive) {
           completer.complete(currentSize);
           timer.cancel();
         }
