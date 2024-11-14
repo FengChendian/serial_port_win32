@@ -116,9 +116,10 @@ port.closeOnListen(
 
 ### Attention
 
-If you want to read or write strings using serial, be careful to handle the terminator at the end.
+- If you want to read or write strings using serial, be careful to handle the terminator at the end.
+  - Although in most cases, like "Hello\0" (68 65 6C 6C 6F 00) and "Hello"(68 65 6C 6C 6F) both can be identified by computer.
 
-Although in most cases, like "Hello\0" (68 65 6C 6C 6F 00) and "Hello"(68 65 6C 6C 6F) both can be identified by computer.
+- Do not use hot restart when port is opened.
 
 ### Small Example
 
