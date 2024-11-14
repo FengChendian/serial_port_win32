@@ -40,6 +40,18 @@ class SerialPort {
   /// status
   final _status = calloc<COMSTAT>();
 
+  // ignore: non_constant_identifier_names
+  int _BaudRate = CBR_115200;
+
+  // ignore: non_constant_identifier_names
+  int _Parity = DCB_PARITY.NOPARITY;
+
+  // ignore: non_constant_identifier_names
+  int _StopBits = DCB_STOP_BITS.ONESTOPBIT;
+
+  // ignore: non_constant_identifier_names
+  int _ByteSize = 8;
+
   /// [_keyPath] is registry path which will be opened
   static final _keyPath = TEXT("HARDWARE\\DEVICEMAP\\SERIALCOMM");
 
@@ -138,15 +150,16 @@ class SerialPort {
     required int ReadTotalTimeoutMultiplier,
     required bool openNow,
   }) {
-    dcb
-      ..ref.BaudRate = BaudRate
-      ..ref.Parity = Parity
-      ..ref.StopBits = StopBits
-      ..ref.ByteSize = ByteSize;
+    this._BaudRate = BaudRate;
+    this._Parity = Parity;
+    this._StopBits = StopBits;
+    this._ByteSize = ByteSize;
+
     commTimeouts
-      ..ref.ReadIntervalTimeout = 10
-      ..ref.ReadTotalTimeoutMultiplier = 10
-      ..ref.ReadTotalTimeoutConstant = 1;
+      ..ref.ReadIntervalTimeout = ReadIntervalTimeout
+      ..ref.ReadTotalTimeoutConstant = ReadTotalTimeoutConstant
+      ..ref.ReadTotalTimeoutMultiplier = ReadTotalTimeoutMultiplier;
+
     if (openNow) {
       open();
     }
@@ -180,6 +193,12 @@ class SerialPort {
         throw Exception('GetCommState failed');
       }
 
+      dcb
+        ..ref.BaudRate = this._BaudRate
+        ..ref.Parity = this._Parity
+        ..ref.StopBits = this._StopBits
+        ..ref.ByteSize = this._ByteSize;
+
       _setCommState();
 
       _setCommTimeouts();
@@ -210,15 +229,16 @@ class SerialPort {
     // ignore: non_constant_identifier_names
     int ReadTotalTimeoutMultiplier = 0,
   }) {
-    dcb
-      ..ref.BaudRate = BaudRate
-      ..ref.Parity = Parity
-      ..ref.StopBits = StopBits
-      ..ref.ByteSize = ByteSize;
+    this._BaudRate = BaudRate;
+    this._Parity = Parity;
+    this._StopBits = StopBits;
+    this._ByteSize = ByteSize;
+
     commTimeouts
-      ..ref.ReadIntervalTimeout = 10
-      ..ref.ReadTotalTimeoutConstant = 1
-      ..ref.ReadTotalTimeoutMultiplier = 0;
+      ..ref.ReadIntervalTimeout = ReadIntervalTimeout
+      ..ref.ReadTotalTimeoutConstant = ReadTotalTimeoutConstant
+      ..ref.ReadTotalTimeoutMultiplier = ReadTotalTimeoutMultiplier;
+
     open();
   }
 
@@ -254,6 +274,7 @@ class SerialPort {
   // ignore: non_constant_identifier_names
   set BaudRate(int rate) {
     dcb.ref.BaudRate = rate;
+    this._BaudRate = rate;
     _setCommState();
   }
 
@@ -261,6 +282,7 @@ class SerialPort {
   // ignore: non_constant_identifier_names
   set ByteSize(int size) {
     dcb.ref.ByteSize = size;
+    this._ByteSize = size;
     _setCommState();
   }
 
@@ -269,6 +291,7 @@ class SerialPort {
   // ignore: non_constant_identifier_names
   set StopBits(int stopBits) {
     dcb.ref.StopBits = stopBits;
+    this._StopBits = stopBits;
     _setCommState();
   }
 
@@ -276,6 +299,7 @@ class SerialPort {
   // ignore: non_constant_identifier_names
   set Parity(int parity) {
     dcb.ref.Parity = parity;
+    this._Parity = parity;
     _setCommState();
   }
 
