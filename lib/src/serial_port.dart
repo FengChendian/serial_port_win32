@@ -14,7 +14,7 @@ class SerialPort {
   /// [portName] like COM3
   final String portName;
 
-  /// just a native string
+  /// The native LPWSTR string.
   final LPWSTR _portNameUtf16;
 
   /// [dcb] is win32 [DCB] struct
@@ -76,25 +76,22 @@ class SerialPort {
     }
   }
 
+  /// cache for singleton
   static final Map<String, SerialPort> _cache = <String, SerialPort>{};
 
-  /// [readOnBeforeFunction] define what  to do when data coming
-  /// a byte will cause a callback
+  /// A callback before data is coming.
+  /// A byte will cause a callback.
   Function() readOnBeforeFunction = () {};
 
-  /// [CLRDTR]
   /// Clears the DTR (data-terminal-ready) signal.
   static const int CLRDTR = 6;
 
-  /// [CLRRTS]
   /// Clears the RTS (request-to-send) signal.
   static const int CLRRTS = 4;
 
-  /// [SETDTR]
   /// Sends the DTR (data-terminal-ready) signal.
   static const int SETDTR = 5;
 
-  /// [SETRTS]
   /// Sends the RTS (request-to-send) signal.
   static const int SETRTS = 3;
 
@@ -332,8 +329,6 @@ class SerialPort {
     }
   }
 
-  /// [ReadIntervalTimeout]
-  ///
   /// The maximum time allowed to elapse before the arrival of the next byte on the communications line,
   /// in milliseconds. If the interval between the arrival of any two bytes exceeds this amount,
   /// the ReadFile operation is completed and any buffered data is returned.
@@ -345,8 +340,6 @@ class SerialPort {
     _setCommTimeouts();
   }
 
-  /// [ReadTotalTimeoutMultiplier]
-  ///
   /// The multiplier used to calculate the total time-out period for read operations, in milliseconds.
   /// For each read operation, this value is multiplied by the requested number of bytes to be read
   ///
@@ -369,8 +362,6 @@ class SerialPort {
     _setCommTimeouts();
   }
 
-  /// [WriteTotalTimeoutMultiplier]
-  ///
   /// The multiplier used to calculate the total time-out period for write operations, in milliseconds.
   /// For each write operation, this value is multiplied by the number of bytes to be written.
   ///
@@ -380,8 +371,6 @@ class SerialPort {
     _setCommTimeouts();
   }
 
-  /// [WriteTotalTimeoutConstant]
-  ///
   /// A constant used to calculate the total time-out period for write operations, in milliseconds.
   /// For each write operation, this value is added to the product of the WriteTotalTimeoutMultiplier
   /// member and the number of bytes to be written.
@@ -401,7 +390,7 @@ class SerialPort {
     EscapeCommFunction(handler, flag);
   }
 
-  /// [_read] is a fundamental read function
+  /// The fundamental read function wrapped by dart.
   Future<Uint8List> _read(int bytesSize) async {
     final lpBuffer = calloc<Uint8>(bytesSize);
     Uint8List uint8list;
@@ -421,7 +410,7 @@ class SerialPort {
     return uint8list;
   }
 
-  /// it will return received data size in queue immediately.
+  /// It will return received data size in queue immediately.
   int _getDataSizeInQueue() {
     if (ClearCommError(handler, _errors, _status) != TRUE) {
       throw Exception(
@@ -430,7 +419,7 @@ class SerialPort {
     return _status.ref.cbInQue;
   }
 
-  /// [readFixedSizeBytes] will always read until readData.length == bytesSize.
+  /// It will always read until readData.length == bytesSize.
   /// [dataPollingInterval] is used for await to execute UI, default set to 500 μs.
   Future<Uint8List> readFixedSizeBytes(int bytesSize,
       {Duration dataPollingInterval =
@@ -476,7 +465,7 @@ class SerialPort {
     }
   }
 
-  /// [readBytesUntil] will read until an [expected] sequence is found
+  /// It will read until an [expected] sequence is found
   Future<Uint8List> readBytesUntil(
     Uint8List expectedList, {
     Duration dataPollingInterval = const Duration(microseconds: 500),
@@ -506,9 +495,9 @@ class SerialPort {
     }
   }
 
-  /// [writeBytesFromString] will convert String to ANSI Code corresponding to char
+  /// It will convert String to ANSI Code corresponding to char
   ///
-  /// if you write "hello" in String, PC will send "hello\0" with "\0" automatically when set includeZeroTerminator true.
+  /// If you write "hello" in String, PC will send "hello\0" with "\0" automatically when set includeZeroTerminator true.
   ///
   /// - Unit of [timeout] is ms, Function will return true if write is completed in timeout.
   /// [stringConverter] decides how to convert your string to uint8 code unit
@@ -549,7 +538,7 @@ class SerialPort {
     }
   }
 
-  /// will write Uint8List directly, please ensure the last of list is 0 terminator if you want to convert it to char.
+  /// The function will write Uint8List directly, please ensure the last of list is 0 terminator if you want to convert it to char.
   /// [timeout] unit: ms. Function will return true if write is completed in timeout.
   Future<bool> writeBytesFromUint8List(Uint8List uint8list,
       {int timeout = 500}) async {
@@ -571,7 +560,7 @@ class SerialPort {
     }
   }
 
-  /// [_getOverlappedResult] will get write result in non-blocking mode
+  /// The function will get overlapped result in non-blocking mode
   /// 500 ms
   Future<bool> _getOverlappedResult(
       int handler,
@@ -589,7 +578,7 @@ class SerialPort {
     return false;
   }
 
-  /// [_getRegistryKeyValue] will open RegistryKey in Serial Path.
+  /// The function will open RegistryKey in Serial Path and return key value.
   static int _getRegistryKeyValue() {
     final hKeyPtr = calloc<IntPtr>();
     int lResult;
@@ -818,13 +807,13 @@ class SerialPort {
         }
       }
 
-      /// [Destroy Device Info List]
+      /// Destroy Device Info List
       SetupDiDestroyDeviceInfoList(hDeviceInfo);
     }
     return portInfoLists;
   }
 
-  /// [close] port which was opened
+  /// Close serial port and set handler invalid.
   void close() {
     CloseHandle(handler);
     handler = INVALID_HANDLE_VALUE;
@@ -844,6 +833,7 @@ class SerialPort {
         _closeController.stream.listen((event) {});
     try {
       CloseHandle(handler);
+      handler = INVALID_HANDLE_VALUE;
     } catch (e) {
       _closeSink.addError(e.toString());
     } finally {
