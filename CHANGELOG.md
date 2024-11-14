@@ -1,3 +1,15 @@
+## 2.1.6
+
+- add status check when set BaudRate, StopBits, etc
+
+## 2.1.5
+
+- fix type error
+
+## 2.1.4
+
+- fix `ERROR_IO_PENDING` on ch340
+
 ## 2.1.3
 
 - fix some bugs

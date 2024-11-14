@@ -32,7 +32,7 @@ class SerialPort {
   Pointer<OVERLAPPED> _over = calloc<OVERLAPPED>();
 
   /// EventMask
-  Pointer<DWORD> _dwCommEvent = calloc<DWORD>();
+  // Pointer<DWORD> _dwCommEvent = calloc<DWORD>();
 
   /// errors
   final _errors = calloc<DWORD>();
@@ -273,34 +273,54 @@ class SerialPort {
   /// using standard win32 Value like [CBR_115200]
   // ignore: non_constant_identifier_names
   set BaudRate(int rate) {
-    dcb.ref.BaudRate = rate;
-    this._BaudRate = rate;
-    _setCommState();
+    if (handler != INVALID_HANDLE_VALUE) {
+      GetCommState(handler, dcb);
+      dcb.ref.BaudRate = rate;
+      this._BaudRate = rate;
+      _setCommState();
+    } else {
+      throw Exception("Port handler is INVALID_HANDLE_VALUE");
+    }
   }
 
   /// data byteSize
   // ignore: non_constant_identifier_names
   set ByteSize(int size) {
-    dcb.ref.ByteSize = size;
-    this._ByteSize = size;
-    _setCommState();
+    if (handler != INVALID_HANDLE_VALUE) {
+      GetCommState(handler, dcb);
+      dcb.ref.ByteSize = size;
+      this._ByteSize = size;
+      _setCommState();
+    } else {
+      throw Exception("Port handler is INVALID_HANDLE_VALUE");
+    }
   }
 
   /// 1 stop bit is [DCB_STOP_BITS.ONESTOPBIT], value is 0
   /// more docs in https://docs.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-dcb
   // ignore: non_constant_identifier_names
   set StopBits(int stopBits) {
-    dcb.ref.StopBits = stopBits;
-    this._StopBits = stopBits;
-    _setCommState();
+    if (handler != INVALID_HANDLE_VALUE) {
+      GetCommState(handler, dcb);
+      dcb.ref.StopBits = stopBits;
+      this._StopBits = stopBits;
+      _setCommState();
+    } else {
+      throw Exception("Port handler is INVALID_HANDLE_VALUE");
+    }
   }
 
   /// You can use [DCB_PARITY.NOPARITY], [DCB_PARITY.ODDPARITY] and so on like win32
   // ignore: non_constant_identifier_names
   set Parity(int parity) {
-    dcb.ref.Parity = parity;
-    this._Parity = parity;
-    _setCommState();
+    if (handler != INVALID_HANDLE_VALUE) {
+      GetCommState(handler, dcb);
+      dcb.ref.Parity = parity;
+      this._Parity = parity;
+      _setCommState();
+    } else {
+      throw Exception("Port handler is INVALID_HANDLE_VALUE");
+    }
   }
 
   /// [ReadIntervalTimeout]
@@ -391,33 +411,14 @@ class SerialPort {
     return uint8list;
   }
 
-  /// [_getDataSizeInQueue] will return received data size in queue
-  Future<int> _getDataSizeInQueue(
-      {Duration dataPollingInterval =
-          const Duration(microseconds: 500)}) async {
-    int event = 0;
+  /// it will return received data size in queue immediately.
+  int _getDataSizeInQueue() {
+    ResetEvent(_over.ref.hEvent);
 
-    while (true) {
-      event = WaitCommEvent(handler, _dwCommEvent, _over);
-      if (event != FALSE) {
-        ClearCommError(handler, _errors, _status);
-        return _status.ref.cbInQue;
-      } else {
-        if (GetLastError() == WIN32_ERROR.ERROR_IO_PENDING) {
-          if (WaitForSingleObject(_over.ref.hEvent, 0) == 0) {
-            ClearCommError(handler, _errors, _status);
-            var cbInQue = _status.ref.cbInQue;
-            ResetEvent(_over.ref.hEvent);
-            return cbInQue;
-          } else {
-            ResetEvent(_over.ref.hEvent);
-          }
-        } else {
-          /// Fallback
-        }
-      }
-      await Future.delayed(dataPollingInterval);
+    if (ClearCommError(handler, _errors, _status) != TRUE) {
+      throw Exception("ClearCommError failed");
     }
+    return _status.ref.cbInQue;
   }
 
   /// [readFixedSizeBytes] will always read until readData.length == bytesSize.
@@ -425,48 +426,25 @@ class SerialPort {
   Future<Uint8List> readFixedSizeBytes(int bytesSize,
       {Duration dataPollingInterval =
           const Duration(microseconds: 500)}) async {
-    int event = 0;
-    List<int> readData = List<int>.empty(growable: true);
+    var cbInQue = 0;
 
     while (true) {
-      event = WaitCommEvent(handler, _dwCommEvent, _over);
-      if (event != FALSE) {
-        ClearCommError(handler, _errors, _status);
-        if (_status.ref.cbInQue != 0) {
-          readData.add((await _read(1))[0]);
-        } else {
-          /// do nothing
-        }
-      } else {
-        if (GetLastError() == WIN32_ERROR.ERROR_IO_PENDING) {
-          if (WaitForSingleObject(_over.ref.hEvent, 0) == 0) {
-            ClearCommError(handler, _errors, _status);
-            if (_status.ref.cbInQue != 0) {
-              readData.add((await _read(1))[0]);
-            } else {
-              /// do nothing
-            }
-            ResetEvent(_over.ref.hEvent);
-          } else {
-            ResetEvent(_over.ref.hEvent);
-          }
-        } else {
-          /// Fallback
-        }
-      }
+      cbInQue = await _getDataSizeInQueue();
 
-      if (readData.length == bytesSize) {
+      if (cbInQue >= bytesSize) {
         break;
       }
       await Future.delayed(dataPollingInterval);
     }
-    return Uint8List.fromList(readData);
+
+    return _read(bytesSize);
   }
 
   /// If [timeout] is none, will read until specified [bytesSize], same as [readFixedSizeBytes] (may cause deadlock).
   /// Or read until [timeout] or specified [bytesSize]
   Future<Uint8List> readBytes(int bytesSize,
-      {required Duration? timeout}) async {
+      {required Duration? timeout,
+      Duration dataPollingInterval = const Duration(microseconds: 500)}) async {
     if (timeout == null) {
       return readFixedSizeBytes(bytesSize);
     } else {
@@ -475,8 +453,7 @@ class SerialPort {
       final completer = Completer<int>();
 
       // ignore: unused_local_variable
-      final readTimer =
-          Timer.periodic(Duration(microseconds: 100), (timer) async {
+      final readTimer = Timer.periodic(dataPollingInterval, (timer) async {
         var currentSize = await _getDataSizeInQueue();
         if (currentSize == bytesSize || !timeoutTimer.isActive) {
           completer.complete(currentSize);
@@ -484,8 +461,7 @@ class SerialPort {
         }
       });
       final dataSizeInQueue = await completer.future;
-      return readFixedSizeBytes(
-          dataSizeInQueue <= bytesSize ? dataSizeInQueue : bytesSize);
+      return _read(dataSizeInQueue <= bytesSize ? dataSizeInQueue : bytesSize);
     }
   }
 
@@ -494,42 +470,16 @@ class SerialPort {
     Uint8List expectedList, {
     Duration dataPollingInterval = const Duration(microseconds: 500),
   }) async {
-    int event = 0;
     List<int> readData = List<int>.empty(growable: true);
 
     final expected = expectedList.toList(growable: false);
     final expectedListLength = expected.length;
 
     while (true) {
-      event = WaitCommEvent(handler, _dwCommEvent, _over);
-      if (event != FALSE) {
-        ClearCommError(handler, _errors, _status);
-        if (_status.ref.cbInQue != 0) {
-          readData.add((await _read(1))[0]);
-        } else {
-          /// do nothing
-        }
-      } else {
-        if (GetLastError() == WIN32_ERROR.ERROR_IO_PENDING) {
-          /// wait io complete, timeout in 500ms
-          for (int i = 0; i < 1000; i++) {
-            if (WaitForSingleObject(_over.ref.hEvent, 0) == 0) {
-              ClearCommError(handler, _errors, _status);
-              if (_status.ref.cbInQue != 0) {
-                readData.add((await _read(1))[0]);
-              } else {}
-              ResetEvent(_over.ref.hEvent);
-              // break for next read operation.
-              break;
-            } else {
-              ResetEvent(_over.ref.hEvent);
-              // continue waiting
-              await Future.delayed(dataPollingInterval);
-            }
-          }
-        } else {
-          /// Fallback
-        }
+      var cbInQue = _getDataSizeInQueue();
+
+      if (cbInQue != 0) {
+        readData.add((await _read(1))[0]);
       }
       if (readData.length < expectedListLength) {
         continue;
