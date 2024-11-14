@@ -29,7 +29,11 @@ class SerialPort {
 
   Pointer<DWORD> _bytesRead = calloc<DWORD>();
 
-  Pointer<OVERLAPPED> _over = calloc<OVERLAPPED>();
+  /// Overlapped struct for [ReadFile]
+  Pointer<OVERLAPPED> _overlappedRead = calloc<OVERLAPPED>();
+
+  /// Overlapped struct for [WriteFile]
+  Pointer<OVERLAPPED> _overlappedWrite = calloc<OVERLAPPED>();
 
   /// EventMask
   // Pointer<DWORD> _dwCommEvent = calloc<DWORD>();
@@ -263,8 +267,13 @@ class SerialPort {
   /// CreateEvent for overlapped I/O
   /// Initialize the rest of the OVERLAPPED structure
   void _createEvent() {
-    _over.ref.hEvent = CreateEvent(nullptr, TRUE, FALSE, nullptr);
-    _over
+    _overlappedRead.ref.hEvent = CreateEvent(nullptr, TRUE, FALSE, nullptr);
+    _overlappedRead
+      ..ref.Internal = 0
+      ..ref.InternalHigh = 0;
+
+    _overlappedWrite.ref.hEvent = CreateEvent(nullptr, TRUE, FALSE, nullptr);
+    _overlappedWrite
       ..ref.Internal = 0
       ..ref.InternalHigh = 0;
   }
@@ -396,9 +405,10 @@ class SerialPort {
   Future<Uint8List> _read(int bytesSize) async {
     final lpBuffer = calloc<Uint8>(bytesSize);
     Uint8List uint8list;
+    ResetEvent(_overlappedRead.ref.hEvent);
     try {
       readOnBeforeFunction();
-      ReadFile(handler, lpBuffer, bytesSize, _bytesRead, _over);
+      ReadFile(handler, lpBuffer, bytesSize, _bytesRead, _overlappedRead);
     } finally {
       /// Uint16 need to be casted for real Uint8 data
       var u8l = lpBuffer.asTypedList(_bytesRead.value);
@@ -413,10 +423,9 @@ class SerialPort {
 
   /// it will return received data size in queue immediately.
   int _getDataSizeInQueue() {
-    ResetEvent(_over.ref.hEvent);
-
     if (ClearCommError(handler, _errors, _status) != TRUE) {
-      throw Exception("ClearCommError failed");
+      throw Exception(
+          "ClearCommError failed, win32 error code is ${GetLastError()}");
     }
     return _status.ref.cbInQue;
   }
@@ -442,9 +451,11 @@ class SerialPort {
 
   /// If [timeout] is none, will read until specified [bytesSize], same as [readFixedSizeBytes] (may cause deadlock).
   /// Or read until [timeout] or specified [bytesSize]
-  Future<Uint8List> readBytes(int bytesSize,
-      {required Duration? timeout,
-      Duration dataPollingInterval = const Duration(microseconds: 500)}) async {
+  Future<Uint8List> readBytes(
+    int bytesSize, {
+    required Duration? timeout,
+    Duration dataPollingInterval = const Duration(microseconds: 500),
+  }) async {
     if (timeout == null) {
       return readFixedSizeBytes(bytesSize);
     } else {
@@ -499,12 +510,14 @@ class SerialPort {
   ///
   /// if you write "hello" in String, PC will send "hello\0" with "\0" automatically when set includeZeroTerminator true.
   ///
-  /// - Unit of [timeout] is ms
+  /// - Unit of [timeout] is ms, Function will return true if write is completed in timeout.
   /// [stringConverter] decides how to convert your string to uint8 code unit
-  Future<bool> writeBytesFromString(String buffer,
-      {int timeout = 500,
-      required bool includeZeroTerminator,
-      StringConverter stringConverter = StringConverter.nativeUtf8}) async {
+  Future<bool> writeBytesFromString(
+    String buffer, {
+    int timeout = 500,
+    required bool includeZeroTerminator,
+    StringConverter stringConverter = StringConverter.nativeUtf8,
+  }) async {
     /// convert dart string to code unit array
     final Pointer<Utf8> lpBuffer;
     final lpNumberOfBytesWritten = calloc<DWORD>();
@@ -524,10 +537,10 @@ class SerialPort {
 
     try {
       if (WriteFile(handler, lpBuffer.cast<Uint8>(), length,
-              lpNumberOfBytesWritten, _over) !=
+              lpNumberOfBytesWritten, _overlappedWrite) !=
           TRUE) {
-        return _getOverlappedResult(
-            handler, _over, lpNumberOfBytesWritten, timeout);
+        return await _getOverlappedResult(
+            handler, _overlappedWrite, lpNumberOfBytesWritten, timeout);
       }
       return true;
     } finally {
@@ -536,8 +549,8 @@ class SerialPort {
     }
   }
 
-  /// [writeBytesFromUint8List] will write Uint8List directly, please ensure the last
-  /// of list is 0 terminator if you want to convert it to char.
+  /// will write Uint8List directly, please ensure the last of list is 0 terminator if you want to convert it to char.
+  /// [timeout] unit: ms. Function will return true if write is completed in timeout.
   Future<bool> writeBytesFromUint8List(Uint8List uint8list,
       {int timeout = 500}) async {
     final lpBuffer = uint8list.allocatePointer();
@@ -545,11 +558,11 @@ class SerialPort {
 
     try {
       if (WriteFile(handler, lpBuffer, uint8list.length, lpNumberOfBytesWritten,
-              _over) !=
+              _overlappedWrite) !=
           TRUE) {
         /// Overlapped will cause IO_PENDING
-        return _getOverlappedResult(
-            handler, _over, lpNumberOfBytesWritten, timeout);
+        return await _getOverlappedResult(
+            handler, _overlappedWrite, lpNumberOfBytesWritten, timeout);
       }
       return true;
     } finally {
@@ -560,11 +573,15 @@ class SerialPort {
 
   /// [_getOverlappedResult] will get write result in non-blocking mode
   /// 500 ms
-  bool _getOverlappedResult(int handler, Pointer<OVERLAPPED> lpOverlapped,
-      Pointer<Uint32> lpNumberOfBytesTransferred, int timeout) {
+  Future<bool> _getOverlappedResult(
+      int handler,
+      Pointer<OVERLAPPED> lpOverlapped,
+      Pointer<Uint32> lpNumberOfBytesTransferred,
+      int timeout) async {
     for (int i = 0; i < timeout; i++) {
-      Future.delayed(Duration(milliseconds: 1));
-      if (GetOverlappedResult(handler, _over, lpNumberOfBytesTransferred, 0) ==
+      await Future.delayed(Duration(milliseconds: 1));
+      if (GetOverlappedResult(
+              handler, lpOverlapped, lpNumberOfBytesTransferred, 0) ==
           TRUE) {
         return true;
       }

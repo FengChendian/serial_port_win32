@@ -1,3 +1,7 @@
+## 2.1.8
+
+- add separated overlapped struct
+
 ## 2.1.7
 
 - fix static analysis

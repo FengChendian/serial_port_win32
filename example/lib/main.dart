@@ -45,7 +45,7 @@ class _MyHomePageState extends State<MyHomePage> {
     print(portInfoLists);
     print(ports);
     if (ports.isNotEmpty) {
-      port = SerialPort("COM8", openNow: false);
+      port = SerialPort("COM4", openNow: false);
       // port
       port.open();
     }
