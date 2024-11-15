@@ -1,3 +1,7 @@
+## 2.1.9
+
+- add more error checks in read function
+
 ## 2.1.8
 
 - add separated overlapped struct

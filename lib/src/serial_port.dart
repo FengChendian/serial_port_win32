@@ -44,6 +44,10 @@ class SerialPort {
   /// status
   final _status = calloc<COMSTAT>();
 
+  /// define timeout (ms) for get Overlapped result in dart non-blocking mode
+  /// default: 60s
+  final maxOverlappedTimeout = 60000;
+
   // ignore: non_constant_identifier_names
   int _BaudRate = CBR_115200;
 
@@ -391,13 +395,38 @@ class SerialPort {
   }
 
   /// The fundamental read function wrapped by dart.
+  /// In default, [_read] will read [bytesSize] bytes only if queue has [bytesSize] bytes, So [_getOverlappedResult] should be true in most cases.
+  /// Just in case, if [_getOverlappedResult] does not return true, the code will query its return value every millisecond for 60s (defined by [maxOverlappedTimeout]) in the non-blocking mode.
+  /// If [_getOverlappedResult] return false finally, it will throw exception unless it is [WIN32_ERROR.ERROR_OPERATION_ABORTED].
   Future<Uint8List> _read(int bytesSize) async {
     final lpBuffer = calloc<Uint8>(bytesSize);
     Uint8List uint8list;
+
+    /// Reset before read use _overlappedRead
     ResetEvent(_overlappedRead.ref.hEvent);
+
     try {
       readOnBeforeFunction();
-      ReadFile(handler, lpBuffer, bytesSize, _bytesRead, _overlappedRead);
+      var readResult =
+          ReadFile(handler, lpBuffer, bytesSize, _bytesRead, _overlappedRead);
+
+      if (readResult != TRUE) {
+        var error = GetLastError();
+        if (error != WIN32_ERROR.ERROR_SUCCESS &&
+            error != WIN32_ERROR.ERROR_IO_PENDING) {
+          throw Exception("ReadFile failed, win32 error code is $error");
+        } else {
+          var overlappedResultOk = await _getOverlappedResult(
+              handler, _overlappedRead, _bytesRead, maxOverlappedTimeout);
+          if (!overlappedResultOk) {
+            var overlappedError = GetLastError();
+            if (overlappedError != WIN32_ERROR.ERROR_OPERATION_ABORTED) {
+              throw Exception(
+                  "GetOverlappedResult failed, win32 error code is $overlappedError");
+            }
+          }
+        }
+      }
     } finally {
       /// Uint16 need to be casted for real Uint8 data
       var u8l = lpBuffer.asTypedList(_bytesRead.value);
@@ -439,7 +468,7 @@ class SerialPort {
   }
 
   /// If [timeout] is none, will read until specified [bytesSize], same as [readFixedSizeBytes] (may cause deadlock).
-  /// Or read until [timeout] or specified [bytesSize]
+  /// Or read completed until [timeout] or specified [bytesSize]
   Future<Uint8List> readBytes(
     int bytesSize, {
     required Duration? timeout,
