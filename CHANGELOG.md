@@ -1,3 +1,8 @@
+## 2.1.10
+
+- add code docs for timeout settings
+- change default read timeout settings, consistent with `pyserial`
+
 ## 2.1.9
 
 - add more error checks in read function

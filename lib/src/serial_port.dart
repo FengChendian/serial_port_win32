@@ -100,6 +100,30 @@ class SerialPort {
   static const int SETRTS = 3;
 
   /// reusable instance using [factory]
+  ///
+  /// # About timeout
+  ///
+  /// By default, win32 timeout parameters should have no effect. Because library use [ClearCommError] to ensure real bytes size in queue and read it.
+  /// [ReadFile] will return full-size bytes immediately with zero timeout.
+  ///
+  /// For more flexible control, lib exposes there timeout win32 parameters to set it.
+  ///
+  /// - [ReadIntervalTimeout]
+  ///   - The maximum time allowed to elapse before the arrival of the next byte on the communications line, in milliseconds.
+  /// If the interval between the arrival of any two bytes exceeds this amount, the ReadFile operation is completed and any buffered data is returned.
+  /// A value of zero indicates that interval time-outs are not used.
+  ///
+  ///   - A value of MAXDWORD, combined with zero values for both the ReadTotalTimeoutConstant and ReadTotalTimeoutMultiplier members,
+  /// specifies that the read operation is to return immediately with the bytes that have already been received, even if no bytes have been received.
+  ///
+  /// - [ReadTotalTimeoutConstant]
+  ///   - A constant used to calculate the total time-out period for read operations, in milliseconds.
+  ///
+  /// ## For example
+  /// 1. [ReadIntervalTimeout] = 0 and [ReadTotalTimeoutConstant] = 1000, means that total win32 ReadFile timeout is 1s. And interval time-outs are not used.
+  /// 2. Set [ReadIntervalTimeout] = MAXDWORD (4294967295U) means [ReadFile] timeout == 0\
+  ///
+  /// See more in https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-commtimeouts
   factory SerialPort(
     String portName, {
     // ignore: non_constant_identifier_names
@@ -111,9 +135,9 @@ class SerialPort {
     // ignore: non_constant_identifier_names
     int ByteSize = 8,
     // ignore: non_constant_identifier_names
-    int ReadIntervalTimeout = 10,
+    int ReadIntervalTimeout = 0,
     // ignore: non_constant_identifier_names
-    int ReadTotalTimeoutConstant = 1,
+    int ReadTotalTimeoutConstant = 0,
     // ignore: non_constant_identifier_names
     int ReadTotalTimeoutMultiplier = 0,
 
@@ -218,6 +242,30 @@ class SerialPort {
   }
 
   /// if you want open a port with some extra settings, use [openWithSettings]
+  ///
+  /// # About timeout
+  ///
+  /// By default, win32 timeout parameters should have no effect. Because library use [ClearCommError] to ensure real bytes size in queue and read it.
+  /// [ReadFile] will return full-size bytes immediately with zero timeout.
+  ///
+  /// For more flexible control, lib exposes there timeout win32 parameters to set it.
+  ///
+  /// - [ReadIntervalTimeout]
+  ///   - The maximum time allowed to elapse before the arrival of the next byte on the communications line, in milliseconds.
+  /// If the interval between the arrival of any two bytes exceeds this amount, the ReadFile operation is completed and any buffered data is returned.
+  /// A value of zero indicates that interval time-outs are not used.
+  ///
+  ///   - A value of MAXDWORD, combined with zero values for both the ReadTotalTimeoutConstant and ReadTotalTimeoutMultiplier members,
+  /// specifies that the read operation is to return immediately with the bytes that have already been received, even if no bytes have been received.
+  ///
+  /// - [ReadTotalTimeoutConstant]
+  ///   - A constant used to calculate the total time-out period for read operations, in milliseconds.
+  ///
+  /// ## For example
+  /// 1. [ReadIntervalTimeout] = 0 and [ReadTotalTimeoutConstant] = 1000, means that total win32 ReadFile timeout is 1s. And interval time-outs are not used.
+  /// 2. Set [ReadIntervalTimeout] = MAXDWORD (4294967295U) means [ReadFile] timeout == 0\
+  ///
+  /// See more in https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-commtimeouts
   void openWithSettings({
     // ignore: non_constant_identifier_names
     int BaudRate = CBR_115200,
@@ -228,9 +276,9 @@ class SerialPort {
     // ignore: non_constant_identifier_names
     int ByteSize = 8,
     // ignore: non_constant_identifier_names
-    int ReadIntervalTimeout = 10,
+    int ReadIntervalTimeout = 0,
     // ignore: non_constant_identifier_names
-    int ReadTotalTimeoutConstant = 1,
+    int ReadTotalTimeoutConstant = 0,
     // ignore: non_constant_identifier_names
     int ReadTotalTimeoutMultiplier = 0,
   }) {
@@ -430,19 +478,19 @@ class SerialPort {
           }
         }
       }
-    } finally {
+
       /// Uint16 need to be casted for real Uint8 data
       var u8l = lpBuffer.asTypedList(_bytesRead.value);
 
       /// Copy data
       uint8list = Uint8List.fromList(u8l);
+      return uint8list;
+    } finally {
       free(lpBuffer);
     }
-
-    return uint8list;
   }
 
-  /// It will return received data size in queue immediately.
+  /// It will return received data size in queue immediately (non-blocking).
   int _getDataSizeInQueue() {
     if (ClearCommError(handler, _errors, _status) != TRUE) {
       throw Exception(
