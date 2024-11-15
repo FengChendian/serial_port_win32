@@ -398,6 +398,7 @@ class SerialPort {
   /// In default, [_read] will read [bytesSize] bytes only if queue has [bytesSize] bytes, So [_getOverlappedResult] should be true in most cases.
   /// Just in case, if [_getOverlappedResult] does not return true, the code will query its return value every millisecond for 60s (defined by [maxOverlappedTimeout]) in the non-blocking mode.
   /// If [_getOverlappedResult] return false finally, it will throw exception unless it is [WIN32_ERROR.ERROR_OPERATION_ABORTED].
+  /// If [WIN32_ERROR.ERROR_OPERATION_ABORTED] occurs, read data size will less than [bytesSize].
   Future<Uint8List> _read(int bytesSize) async {
     final lpBuffer = calloc<Uint8>(bytesSize);
     Uint8List uint8list;
@@ -420,6 +421,8 @@ class SerialPort {
               handler, _overlappedRead, _bytesRead, maxOverlappedTimeout);
           if (!overlappedResultOk) {
             var overlappedError = GetLastError();
+
+            /// OPERATION_ABORTED is not a exception
             if (overlappedError != WIN32_ERROR.ERROR_OPERATION_ABORTED) {
               throw Exception(
                   "GetOverlappedResult failed, win32 error code is $overlappedError");
@@ -557,6 +560,13 @@ class SerialPort {
       if (WriteFile(handler, lpBuffer.cast<Uint8>(), length,
               lpNumberOfBytesWritten, _overlappedWrite) !=
           TRUE) {
+        var writeError = GetLastError();
+
+        if (writeError != WIN32_ERROR.ERROR_SUCCESS &&
+            writeError != WIN32_ERROR.ERROR_IO_PENDING) {
+          throw Exception("WriteFile failed, win32 code is $writeError");
+        }
+
         return await _getOverlappedResult(
             handler, _overlappedWrite, lpNumberOfBytesWritten, timeout);
       }
