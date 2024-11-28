@@ -263,7 +263,7 @@ class SerialPort {
   ///
   /// ## For example
   /// 1. [ReadIntervalTimeout] = 0 and [ReadTotalTimeoutConstant] = 1000, means that total win32 ReadFile timeout is 1s. And interval time-outs are not used.
-  /// 2. Set [ReadIntervalTimeout] = MAXDWORD (4294967295U) means [ReadFile] timeout == 0\
+  /// 2. Set [ReadIntervalTimeout] = MAXDWORD (4294967295U) means [ReadFile] `timeout == 0`
   ///
   /// See more in https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-commtimeouts
   void openWithSettings({
@@ -534,10 +534,15 @@ class SerialPort {
 
       // ignore: unused_local_variable
       final readTimer = Timer.periodic(dataPollingInterval, (timer) async {
-        var currentSize = _getDataSizeInQueue();
-        if (currentSize >= bytesSize || !timeoutTimer.isActive) {
-          completer.complete(currentSize);
+        try {
+          var currentSize = _getDataSizeInQueue();
+          if (currentSize >= bytesSize || !timeoutTimer.isActive) {
+            completer.complete(currentSize);
+            timer.cancel();
+          }
+        } on Exception catch (e) {
           timer.cancel();
+          throw e;
         }
       });
       final dataSizeInQueue = await completer.future;

@@ -45,7 +45,7 @@ class _MyHomePageState extends State<MyHomePage> {
     print(portInfoLists);
     print(ports);
     if (ports.isNotEmpty) {
-      port = SerialPort("COM7", openNow: false);
+      port = SerialPort("COM8", openNow: false);
       // port
       port.open();
     }
@@ -111,6 +111,10 @@ class _MyHomePageState extends State<MyHomePage> {
         stringConverter: StringConverter.nativeUtf8);
 
     await fixedBytesRead;
+
+    while (true) {
+      await port.readBytes(1, timeout: Duration(seconds: 1));
+    }
 
     port.close();
   }
