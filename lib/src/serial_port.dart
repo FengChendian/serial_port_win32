@@ -533,21 +533,21 @@ class SerialPort {
       final completer = Completer<int>();
 
       /// First check on start, then enter periodic timer
-      int currentSize = _getDataSizeInQueue();
+      var currentSize = _getDataSizeInQueue();
       if (currentSize >= bytesSize || !timeoutTimer.isActive) {
         completer.complete(currentSize);
       } else {
         // ignore: unused_local_variable
         final readTimer = Timer.periodic(dataPollingInterval, (timer) {
           try {
-            currentSize = _getDataSizeInQueue();
+            var currentSize = _getDataSizeInQueue();
+            if (currentSize >= bytesSize || !timeoutTimer.isActive) {
+              completer.complete(currentSize);
+              timer.cancel();
+            }
           } catch (e) {
             timer.cancel();
             completer.completeError(e);
-          }
-          if (currentSize >= bytesSize || !timeoutTimer.isActive) {
-            completer.complete(currentSize);
-            timer.cancel();
           }
         });
       }

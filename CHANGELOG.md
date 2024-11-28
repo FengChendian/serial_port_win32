@@ -1,3 +1,7 @@
+## 2.1.12
+
+- extend try-catch range
+
 ## 2.1.11
 
 - handle error in timer and rethrow it by completer
