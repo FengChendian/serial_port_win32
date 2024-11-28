@@ -1,3 +1,8 @@
+## 2.1.11
+
+- handle error in timer and rethrow it by completer
+- add test code
+
 ## 2.1.10
 
 - add code docs for timeout settings

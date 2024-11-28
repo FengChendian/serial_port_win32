@@ -532,19 +532,25 @@ class SerialPort {
 
       final completer = Completer<int>();
 
-      // ignore: unused_local_variable
-      final readTimer = Timer.periodic(dataPollingInterval, (timer) async {
-        try {
-          var currentSize = _getDataSizeInQueue();
+      /// First check on start, then enter periodic timer
+      int currentSize = _getDataSizeInQueue();
+      if (currentSize >= bytesSize || !timeoutTimer.isActive) {
+        completer.complete(currentSize);
+      } else {
+        // ignore: unused_local_variable
+        final readTimer = Timer.periodic(dataPollingInterval, (timer) {
+          try {
+            currentSize = _getDataSizeInQueue();
+          } catch (e) {
+            timer.cancel();
+            completer.completeError(e);
+          }
           if (currentSize >= bytesSize || !timeoutTimer.isActive) {
             completer.complete(currentSize);
             timer.cancel();
           }
-        } on Exception catch (e) {
-          timer.cancel();
-          throw e;
-        }
-      });
+        });
+      }
       final dataSizeInQueue = await completer.future;
       return _read(dataSizeInQueue <= bytesSize ? dataSizeInQueue : bytesSize);
     }

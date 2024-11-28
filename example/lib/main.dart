@@ -112,8 +112,14 @@ class _MyHomePageState extends State<MyHomePage> {
 
     await fixedBytesRead;
 
+    /// Test disconnected
     while (true) {
-      await port.readBytes(1, timeout: Duration(seconds: 1));
+      try {
+        await port.readBytes(1, timeout: Duration(seconds: 1));
+      } catch (e) {
+        print(e);
+        break;
+      }
     }
 
     port.close();
