@@ -195,7 +195,7 @@ class SerialPort {
   }
 
   /// [open] can be called when handler is null or handler is closed
-  void open() async {
+  Future<void> open() async {
     /// Do not open a port which has been opened
     if (isOpened == false) {
       handler = CreateFile(
