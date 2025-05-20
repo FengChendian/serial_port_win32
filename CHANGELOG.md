@@ -1,3 +1,7 @@
+## 2.2.0
+
+- fix return no Future<void>
+
 ## 2.1.12
 
 - extend try-catch range
