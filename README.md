@@ -25,6 +25,7 @@ required this.portName,
 required this.friendlyName,
 required this.hardwareID,
 required this.manufactureName,
+required this.deviceInstanceId,
 });
 ```
 

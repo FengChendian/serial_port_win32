@@ -52,10 +52,10 @@ class SerialPort {
   int _BaudRate = CBR_115200;
 
   // ignore: non_constant_identifier_names
-  int _Parity = DCB_PARITY.NOPARITY;
+  int _Parity = NOPARITY;
 
   // ignore: non_constant_identifier_names
-  int _StopBits = DCB_STOP_BITS.ONESTOPBIT;
+  int _StopBits = ONESTOPBIT;
 
   // ignore: non_constant_identifier_names
   int _ByteSize = 8;
@@ -129,9 +129,9 @@ class SerialPort {
     // ignore: non_constant_identifier_names
     int BaudRate = CBR_115200,
     // ignore: non_constant_identifier_names
-    int Parity = DCB_PARITY.NOPARITY,
+    int Parity = NOPARITY,
     // ignore: non_constant_identifier_names
-    int StopBits = DCB_STOP_BITS.ONESTOPBIT,
+    int StopBits = ONESTOPBIT,
     // ignore: non_constant_identifier_names
     int ByteSize = 8,
     // ignore: non_constant_identifier_names
@@ -200,17 +200,17 @@ class SerialPort {
     if (isOpened == false) {
       handler = CreateFile(
           _portNameUtf16,
-          GENERIC_ACCESS_RIGHTS.GENERIC_READ |
-              GENERIC_ACCESS_RIGHTS.GENERIC_WRITE,
+          GENERIC_READ |
+              GENERIC_WRITE,
           0,
           nullptr,
-          FILE_CREATION_DISPOSITION.OPEN_EXISTING,
-          FILE_FLAGS_AND_ATTRIBUTES.FILE_FLAG_OVERLAPPED,
+          OPEN_EXISTING,
+          FILE_FLAG_OVERLAPPED,
           NULL);
 
       if (handler == INVALID_HANDLE_VALUE) {
         final lastError = GetLastError();
-        if (lastError == WIN32_ERROR.ERROR_FILE_NOT_FOUND) {
+        if (lastError == ERROR_FILE_NOT_FOUND) {
           throw Exception(_portNameUtf16.toDartString() + " is not available");
         } else {
           throw Exception('Open port failed, win32 error code is $lastError');
@@ -232,7 +232,7 @@ class SerialPort {
 
       _setCommTimeouts();
 
-      if (SetCommMask(handler, COMM_EVENT_MASK.EV_RXCHAR) == 0) {
+      if (SetCommMask(handler, EV_RXCHAR) == 0) {
         throw Exception('SetCommMask error');
       }
       _createEvent();
@@ -270,9 +270,9 @@ class SerialPort {
     // ignore: non_constant_identifier_names
     int BaudRate = CBR_115200,
     // ignore: non_constant_identifier_names
-    int Parity = DCB_PARITY.NOPARITY,
+    int Parity = NOPARITY,
     // ignore: non_constant_identifier_names
-    int StopBits = DCB_STOP_BITS.ONESTOPBIT,
+    int StopBits = ONESTOPBIT,
     // ignore: non_constant_identifier_names
     int ByteSize = 8,
     // ignore: non_constant_identifier_names
@@ -302,7 +302,7 @@ class SerialPort {
           'SetCommState error, win32 error code is ${GetLastError()}');
     } else {
       PurgeComm(handler,
-          PURGE_COMM_FLAGS.PURGE_RXCLEAR | PURGE_COMM_FLAGS.PURGE_TXCLEAR);
+          PURGE_RXCLEAR | PURGE_TXCLEAR);
     }
   }
 
@@ -354,7 +354,7 @@ class SerialPort {
     }
   }
 
-  /// 1 stop bit is [DCB_STOP_BITS.ONESTOPBIT], value is 0
+  /// 1 stop bit is [ONESTOPBIT], value is 0
   /// more docs in https://docs.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-dcb
   // ignore: non_constant_identifier_names
   set StopBits(int stopBits) {
@@ -368,7 +368,7 @@ class SerialPort {
     }
   }
 
-  /// You can use [DCB_PARITY.NOPARITY], [DCB_PARITY.ODDPARITY] and so on like win32
+  /// You can use [NOPARITY], [ODDPARITY] and so on like win32
   // ignore: non_constant_identifier_names
   set Parity(int parity) {
     if (handler != INVALID_HANDLE_VALUE) {
@@ -445,8 +445,8 @@ class SerialPort {
   /// The fundamental read function wrapped by dart.
   /// In default, [_read] will read [bytesSize] bytes only if queue has [bytesSize] bytes, So [_getOverlappedResult] should be true in most cases.
   /// Just in case, if [_getOverlappedResult] does not return true, the code will query its return value every millisecond for 60s (defined by [maxOverlappedTimeout]) in the non-blocking mode.
-  /// If [_getOverlappedResult] return false finally, it will throw exception unless it is [WIN32_ERROR.ERROR_OPERATION_ABORTED].
-  /// If [WIN32_ERROR.ERROR_OPERATION_ABORTED] occurs, read data size will less than [bytesSize].
+  /// If [_getOverlappedResult] return false finally, it will throw exception unless it is [ERROR_OPERATION_ABORTED].
+  /// If [ERROR_OPERATION_ABORTED] occurs, read data size will less than [bytesSize].
   Future<Uint8List> _read(int bytesSize) async {
     final lpBuffer = calloc<Uint8>(bytesSize);
     Uint8List uint8list;
@@ -461,8 +461,8 @@ class SerialPort {
 
       if (readResult != TRUE) {
         var error = GetLastError();
-        if (error != WIN32_ERROR.ERROR_SUCCESS &&
-            error != WIN32_ERROR.ERROR_IO_PENDING) {
+        if (error != ERROR_SUCCESS &&
+            error != ERROR_IO_PENDING) {
           throw Exception("ReadFile failed, win32 error code is $error");
         } else {
           var overlappedResultOk = await _getOverlappedResult(
@@ -471,7 +471,7 @@ class SerialPort {
             var overlappedError = GetLastError();
 
             /// OPERATION_ABORTED is not a exception
-            if (overlappedError != WIN32_ERROR.ERROR_OPERATION_ABORTED) {
+            if (overlappedError != ERROR_OPERATION_ABORTED) {
               throw Exception(
                   "GetOverlappedResult failed, win32 error code is $overlappedError");
             }
@@ -621,8 +621,8 @@ class SerialPort {
           TRUE) {
         var writeError = GetLastError();
 
-        if (writeError != WIN32_ERROR.ERROR_SUCCESS &&
-            writeError != WIN32_ERROR.ERROR_IO_PENDING) {
+        if (writeError != ERROR_SUCCESS &&
+            writeError != ERROR_IO_PENDING) {
           throw Exception("WriteFile failed, win32 code is $writeError");
         }
 
@@ -682,8 +682,8 @@ class SerialPort {
     int lResult;
     try {
       lResult = RegOpenKeyEx(
-          HKEY_LOCAL_MACHINE, _keyPath, 0, REG_SAM_FLAGS.KEY_READ, hKeyPtr);
-      if (lResult != WIN32_ERROR.ERROR_SUCCESS) {
+          HKEY_LOCAL_MACHINE, _keyPath, 0, KEY_READ, hKeyPtr);
+      if (lResult != ERROR_SUCCESS) {
         // RegCloseKey(hKeyPtr.value);
         throw Exception("RegistryKeyValue Not Found");
       } else {
@@ -723,11 +723,11 @@ class SerialPort {
           nullptr, lpType, lpData, lpcbData);
 
       switch (status) {
-        case WIN32_ERROR.ERROR_SUCCESS:
+        case ERROR_SUCCESS:
           return lpData.cast<Utf16>().toDartString();
-        case WIN32_ERROR.ERROR_MORE_DATA:
+        case ERROR_MORE_DATA:
           throw Exception("ERROR_MORE_DATA");
-        case WIN32_ERROR.ERROR_NO_MORE_ITEMS:
+        case ERROR_NO_MORE_ITEMS:
           return null;
         default:
           throw Exception("Unknown error!");
@@ -800,8 +800,8 @@ class SerialPort {
         classGUID,
         nullptr,
         0,
-        SETUP_DI_GET_CLASS_DEVS_FLAGS.DIGCF_DEVICEINTERFACE |
-            SETUP_DI_GET_CLASS_DEVS_FLAGS.DIGCF_PRESENT);
+        DIGCF_DEVICEINTERFACE |
+            DIGCF_PRESENT);
 
     if (hDeviceInfo != INVALID_HANDLE_VALUE) {
       /// Init device info data
@@ -818,6 +818,7 @@ class SerialPort {
         final friendlyName = calloc<BYTE>(256);
         final hardwareID = calloc<BYTE>(256);
         final manufactureName = calloc<BYTE>(256);
+        final deviceInstanceId = calloc<BYTE>(MAX_PATH);
 
         /// [SP_DEVICE_INTERFACE_DATA] in dart
         // final deviceInterfaceData = calloc<SP_DEVICE_INTERFACE_DATA>();
@@ -832,10 +833,10 @@ class SerialPort {
           var hDevKey = SetupDiOpenDevRegKey(
               hDeviceInfo,
               devInfoData,
-              SETUP_DI_PROPERTY_CHANGE_SCOPE.DICS_FLAG_GLOBAL,
+              DICS_FLAG_GLOBAL,
               0,
               DIREG_DEV,
-              REG_SAM_FLAGS.KEY_READ);
+              KEY_READ);
 
           if (hDevKey != INVALID_HANDLE_VALUE) {
             RegQueryValueEx(
@@ -847,27 +848,37 @@ class SerialPort {
           if (SetupDiGetDeviceRegistryProperty(
                   hDeviceInfo,
                   devInfoData,
-                  SPDRP.SPDRP_FRIENDLYNAME,
+                  SPDRP_FRIENDLYNAME,
                   nullptr,
                   friendlyName,
                   255,
                   nullptr) !=
               TRUE) {
-            continue;
+            /// Fallback
+            // continue;
           }
 
           /// Get Hardware ID
           if (SetupDiGetDeviceRegistryProperty(hDeviceInfo, devInfoData,
-                  SPDRP.SPDRP_HARDWAREID, nullptr, hardwareID, 255, nullptr) !=
+                  SPDRP_HARDWAREID, nullptr, hardwareID, 255, nullptr) !=
               TRUE) {
-            continue;
+            /// Fallback
+            // continue;
           }
 
           /// Get MFG
           if (SetupDiGetDeviceRegistryProperty(hDeviceInfo, devInfoData,
-                  SPDRP.SPDRP_MFG, nullptr, manufactureName, 255, nullptr) !=
+                  SPDRP_MFG, nullptr, manufactureName, 255, nullptr) !=
               TRUE) {
-            continue;
+            /// Fallback
+            // continue;
+          }
+
+          if (SetupDiGetDeviceInstanceId(
+                  hDeviceInfo, devInfoData, deviceInstanceId.cast<Utf16>(), 255, nullptr) !=
+              TRUE) {
+            /// Fallback
+            // continue;
           }
 
           // if (SetupDiEnumDeviceInterfaces(hDeviceInfo, devInfoData, classGUID, i, deviceInterfaceData) != TRUE) {
@@ -888,18 +899,23 @@ class SerialPort {
           final String manufactureNameStr =
               manufactureName.cast<Utf16>().toDartString();
 
+          final deviceInstanceIdStr = deviceInstanceId.cast<Utf16>().toDartString();
+
           /// add to lists
           portInfoLists.add(PortInfo(
-              portName: portNameStr,
-              friendlyName: friendlyNameStr,
-              hardwareID: hardwareIDStr,
-              manufactureName: manufactureNameStr));
+            portName: portNameStr,
+            friendlyName: friendlyNameStr,
+            hardwareID: hardwareIDStr,
+            manufactureName: manufactureNameStr,
+            deviceInstanceId: deviceInstanceIdStr,
+          ));
         } finally {
           free(portName);
           free(pcbData);
           free(friendlyName);
           free(hardwareID);
           free(manufactureName);
+          free(deviceInstanceId);
           // free(deviceInterfaceData);
           // free(deviceInterfaceDetailData);
         }
@@ -954,15 +970,18 @@ class PortInfo {
   final String hardwareID;
   final String manufactureName;
 
+  final String deviceInstanceId;
+
   const PortInfo({
     required this.portName,
     required this.friendlyName,
     required this.hardwareID,
     required this.manufactureName,
+    required this.deviceInstanceId,
   });
 
   @override
   String toString() {
-    return 'Port Name: $portName, FriendlyName: $friendlyName, hardwareID: $hardwareID, manufactureName: $manufactureName';
+    return 'Port Name: $portName, FriendlyName: $friendlyName, hardwareID: $hardwareID, manufactureName: $manufactureName, deviceInstanceId: $deviceInstanceId';
   }
 }

@@ -1,3 +1,8 @@
+## 2.3.0
+
+- add deviceInstanceID to PortInfo
+- move to new dependencies
+
 ## 2.2.0
 
 - fix return no Future<void>
