@@ -198,15 +198,8 @@ class SerialPort {
   Future<void> open() async {
     /// Do not open a port which has been opened
     if (isOpened == false) {
-      handler = CreateFile(
-          _portNameUtf16,
-          GENERIC_READ |
-              GENERIC_WRITE,
-          0,
-          nullptr,
-          OPEN_EXISTING,
-          FILE_FLAG_OVERLAPPED,
-          NULL);
+      handler = CreateFile(_portNameUtf16, GENERIC_READ | GENERIC_WRITE, 0,
+          nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
 
       if (handler == INVALID_HANDLE_VALUE) {
         final lastError = GetLastError();
@@ -301,8 +294,7 @@ class SerialPort {
       throw Exception(
           'SetCommState error, win32 error code is ${GetLastError()}');
     } else {
-      PurgeComm(handler,
-          PURGE_RXCLEAR | PURGE_TXCLEAR);
+      PurgeComm(handler, PURGE_RXCLEAR | PURGE_TXCLEAR);
     }
   }
 
@@ -461,8 +453,7 @@ class SerialPort {
 
       if (readResult != TRUE) {
         var error = GetLastError();
-        if (error != ERROR_SUCCESS &&
-            error != ERROR_IO_PENDING) {
+        if (error != ERROR_SUCCESS && error != ERROR_IO_PENDING) {
           throw Exception("ReadFile failed, win32 error code is $error");
         } else {
           var overlappedResultOk = await _getOverlappedResult(
@@ -621,8 +612,7 @@ class SerialPort {
           TRUE) {
         var writeError = GetLastError();
 
-        if (writeError != ERROR_SUCCESS &&
-            writeError != ERROR_IO_PENDING) {
+        if (writeError != ERROR_SUCCESS && writeError != ERROR_IO_PENDING) {
           throw Exception("WriteFile failed, win32 code is $writeError");
         }
 
@@ -681,8 +671,8 @@ class SerialPort {
     final hKeyPtr = calloc<IntPtr>();
     int lResult;
     try {
-      lResult = RegOpenKeyEx(
-          HKEY_LOCAL_MACHINE, _keyPath, 0, KEY_READ, hKeyPtr);
+      lResult =
+          RegOpenKeyEx(HKEY_LOCAL_MACHINE, _keyPath, 0, KEY_READ, hKeyPtr);
       if (lResult != ERROR_SUCCESS) {
         // RegCloseKey(hKeyPtr.value);
         throw Exception("RegistryKeyValue Not Found");
@@ -797,11 +787,7 @@ class SerialPort {
 
     /// Get Device info handle
     final hDeviceInfo = SetupDiGetClassDevs(
-        classGUID,
-        nullptr,
-        0,
-        DIGCF_DEVICEINTERFACE |
-            DIGCF_PRESENT);
+        classGUID, nullptr, 0, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT);
 
     if (hDeviceInfo != INVALID_HANDLE_VALUE) {
       /// Init device info data
@@ -830,13 +816,8 @@ class SerialPort {
         //     sizeOf<SP_DEVICE_INTERFACE_DETAIL_DATA_>();
 
         try {
-          var hDevKey = SetupDiOpenDevRegKey(
-              hDeviceInfo,
-              devInfoData,
-              DICS_FLAG_GLOBAL,
-              0,
-              DIREG_DEV,
-              KEY_READ);
+          var hDevKey = SetupDiOpenDevRegKey(hDeviceInfo, devInfoData,
+              DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_READ);
 
           if (hDevKey != INVALID_HANDLE_VALUE) {
             RegQueryValueEx(
@@ -845,14 +826,8 @@ class SerialPort {
           }
 
           /// Get friendly name
-          if (SetupDiGetDeviceRegistryProperty(
-                  hDeviceInfo,
-                  devInfoData,
-                  SPDRP_FRIENDLYNAME,
-                  nullptr,
-                  friendlyName,
-                  255,
-                  nullptr) !=
+          if (SetupDiGetDeviceRegistryProperty(hDeviceInfo, devInfoData,
+                  SPDRP_FRIENDLYNAME, nullptr, friendlyName, 255, nullptr) !=
               TRUE) {
             /// Fallback
             // continue;
@@ -874,8 +849,8 @@ class SerialPort {
             // continue;
           }
 
-          if (SetupDiGetDeviceInstanceId(
-                  hDeviceInfo, devInfoData, deviceInstanceId.cast<Utf16>(), 255, nullptr) !=
+          if (SetupDiGetDeviceInstanceId(hDeviceInfo, devInfoData,
+                  deviceInstanceId.cast<Utf16>(), 255, nullptr) !=
               TRUE) {
             /// Fallback
             // continue;
@@ -899,7 +874,8 @@ class SerialPort {
           final String manufactureNameStr =
               manufactureName.cast<Utf16>().toDartString();
 
-          final deviceInstanceIdStr = deviceInstanceId.cast<Utf16>().toDartString();
+          final deviceInstanceIdStr =
+              deviceInstanceId.cast<Utf16>().toDartString();
 
           /// add to lists
           portInfoLists.add(PortInfo(
