@@ -291,7 +291,7 @@ class SerialPort {
 
   /// When [dcb] struct is changed, you must call [_setCommState] to update settings.
   void _setCommState() {
-    if (SetCommState(handler, dcb) == FALSE) {
+    if (SetCommState(handler, dcb).value == false) {
       throw Exception(
           'SetCommState error, win32 error code is ${GetLastError()}');
     } else {
@@ -301,7 +301,7 @@ class SerialPort {
 
   /// When [commTimeouts] struct is changed, you must call [_setCommTimeouts] to update settings.
   void _setCommTimeouts() {
-    if (SetCommTimeouts(handler, commTimeouts) == FALSE) {
+    if (SetCommTimeouts(handler, commTimeouts).value == false) {
       throw Exception('SetCommTimeouts error');
     }
   }
@@ -451,10 +451,11 @@ class SerialPort {
 
     try {
       readOnBeforeFunction();
-      var readResult =
+      final readResultWin32Result =
           ReadFile(handler, lpBuffer, bytesSize, _bytesRead, _overlappedRead);
+      final readResult = readResultWin32Result.value;
 
-      if (readResult != TRUE) {
+      if (readResult != true) {
         var error = GetLastError();
         if (error != ERROR_SUCCESS && error != ERROR_IO_PENDING) {
           throw Exception("ReadFile failed, win32 error code is $error");
@@ -611,8 +612,8 @@ class SerialPort {
 
     try {
       if (WriteFile(handler, lpBuffer.cast<Uint8>(), length,
-              lpNumberOfBytesWritten, _overlappedWrite) !=
-          TRUE) {
+              lpNumberOfBytesWritten, _overlappedWrite).value !=
+          true) {
         var writeError = GetLastError();
 
         if (writeError != ERROR_SUCCESS && writeError != ERROR_IO_PENDING) {
@@ -638,8 +639,8 @@ class SerialPort {
 
     try {
       if (WriteFile(handler, lpBuffer, uint8list.length, lpNumberOfBytesWritten,
-              _overlappedWrite) !=
-          TRUE) {
+              _overlappedWrite).value !=
+          true) {
         /// Overlapped will cause IO_PENDING
         return await _getOverlappedResult(
             handler, _overlappedWrite, lpNumberOfBytesWritten, timeout);
@@ -661,8 +662,8 @@ class SerialPort {
     for (int i = 0; i < timeout; i++) {
       await Future.delayed(Duration(milliseconds: 1));
       if (GetOverlappedResult(
-              handler, lpOverlapped, lpNumberOfBytesTransferred, false) ==
-          TRUE) {
+              handler, lpOverlapped, lpNumberOfBytesTransferred, false).value ==
+          true) {
         return true;
       }
     }
