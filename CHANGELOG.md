@@ -1,3 +1,7 @@
+## 3.0.0
+
+- change win32 to 6.0.0
+
 ## 2.3.0
 
 - add deviceInstanceID to PortInfo

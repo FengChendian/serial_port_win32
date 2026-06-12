@@ -40,15 +40,16 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _getPortsAndOpen() {
     final List<PortInfo> portInfoLists = SerialPort.getPortsWithFullMessages();
+
     ports = SerialPort.getAvailablePorts();
 
     print(portInfoLists);
     print(ports);
-    if (ports.isNotEmpty) {
-      port = SerialPort("COM8", openNow: false);
-      // port
-      port.open();
-    }
+    // if (ports.isNotEmpty) {
+    //   port = SerialPort("COM8", openNow: false);
+    //   // port
+    //   port.open();
+    // }
     setState(() {});
   }
 
