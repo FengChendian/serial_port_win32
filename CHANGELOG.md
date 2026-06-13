@@ -1,6 +1,7 @@
-## 3.0.0
+## 3.0.0-dev.1
 
-- change win32 to 6.0.0
+- change `win32` dependency to 6.0.0
+- breaking API changes due to `win32` package
 
 ## 2.3.0
 

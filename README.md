@@ -4,6 +4,36 @@ A SerialPort library using win32 API.
 
 [![pub](https://img.shields.io/pub/v/serial_port_win32?color=blue)](https://pub.dev/packages/serial_port_win32)
 
+## Breaking Changes from 2.x.x to 3.x.x
+
+> Due to many major changes in `win32` package, this package need to break some APIs.
+
+Some main APIs change below:
+
+- `set Parity(int parity)` -> `set Parity(DCB_PARITY parity)`
+- `static List<PortInfo> getPortsWithFullMessages({String classGUIDStr = GUID_DEVINTERFACE_COMPORT})` -> `static List<PortInfo> getPortsWithFullMessages({GUID? classGUID})`
+- `set StopBits(int stopBits)` -> `set StopBits(DCB_STOP_BITS stopBits)`
+- Some `Exception`s change to `WindowsException`s
+
+### Deprecated
+
+```dart
+@Deprecated("Use win32 constant CLRDTR instead of this, because it is more clear to understand")
+static const int CLRDTR = 6;
+
+/// Clears the RTS (request-to-send) signal.
+@Deprecated("Use win32 constant CLRRTS instead of this, because it is more clear to understand")
+static const int CLRRTS = 4;
+
+/// Sends the DTR (data-terminal-ready) signal.
+@Deprecated("Use win32 constant SETDTR instead of this, because it is more clear to understand")
+static const int SETDTR = 5;
+
+/// Sends the RTS (request-to-send) signal.
+@Deprecated("Use win32 constant SETRTS instead of this, because it is more clear to understand")
+static const int SETRTS = 3;
+```
+
 ## Getting Started
 
 ### Get Ports
@@ -91,8 +121,8 @@ port.isOpened == false;
 ### Flow Control
 
 ```dart
-port.setFlowControlSignal(SerialPort.SETDTR);
-port.setFlowControlSignal(SerialPort.CLRDTR);
+port.setFlowControlSignal(SETDTR);
+port.setFlowControlSignal(CLRDTR);
 ```
 
 ### Close Serial Port

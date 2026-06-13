@@ -14,7 +14,7 @@ class SerialPort {
   /// [portName] like COM3
   final String portName;
 
-  /// The native LPWSTR string.
+  /// The native pcwstr string.
   final PCWSTR _portNameUtf16;
 
   /// [dcb] is win32 [DCB] struct
@@ -66,13 +66,13 @@ class SerialPort {
   /// get COM status
   bool get isOpened {
     if (handler != INVALID_HANDLE_VALUE) {
-      if (ClearCommError(handler, _errors, _status) == 0) {
-        var error = GetLastError();
-
-        /// Device is disconnected
+      final clearCommErrorResult = ClearCommError(handler, _errors, _status);
+      if (clearCommErrorResult.value == false) {
+        // var error = GetLastError();
+        /// It means that device is disconnected physically
         close();
         throw Exception(
-            '${_portNameUtf16.toDartString()} is disconnected, win32 Error Code is $error');
+            '${_portNameUtf16.toDartString()} is disconnected, win32 Error Code is ${clearCommErrorResult.error}');
       }
       return true;
     } else {
@@ -88,15 +88,19 @@ class SerialPort {
   Function() readOnBeforeFunction = () {};
 
   /// Clears the DTR (data-terminal-ready) signal.
+  @Deprecated("Use win32 constant CLRDTR instead of this, because it is more clear to understand")
   static const int CLRDTR = 6;
 
   /// Clears the RTS (request-to-send) signal.
+  @Deprecated("Use win32 constant CLRRTS instead of this, because it is more clear to understand")
   static const int CLRRTS = 4;
 
   /// Sends the DTR (data-terminal-ready) signal.
+  @Deprecated("Use win32 constant SETDTR instead of this, because it is more clear to understand")
   static const int SETDTR = 5;
 
   /// Sends the RTS (request-to-send) signal.
+  @Deprecated("Use win32 constant SETRTS instead of this, because it is more clear to understand")
   static const int SETRTS = 3;
 
   /// reusable instance using [factory]
@@ -198,22 +202,30 @@ class SerialPort {
   Future<void> open() async {
     /// Do not open a port which has been opened
     if (isOpened == false) {
-      final result = CreateFile(_portNameUtf16, GENERIC_READ | GENERIC_WRITE,
-          FILE_SHARE_NONE, nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, null);
-      handler = result.value;
+      final Win32Result(value: hwnd, :error) = CreateFile(
+          _portNameUtf16,
+          GENERIC_READ | GENERIC_WRITE,
+          FILE_SHARE_NONE,
+          nullptr,
+          OPEN_EXISTING,
+          FILE_FLAG_OVERLAPPED,
+          null);
+      // handler = result.value;
+      /// need to assign class handler, because hwnd is local variable and will be released after function, but handler is class variable and will be used in other functions.
+      handler = hwnd;
 
       if (handler == INVALID_HANDLE_VALUE) {
-        final lastError = GetLastError();
-        if (lastError == ERROR_FILE_NOT_FOUND) {
+        // final lastError = GetLastError();
+        if (error == ERROR_FILE_NOT_FOUND) {
           throw Exception(_portNameUtf16.toDartString() + " is not available");
         } else {
-          throw Exception('Open port failed, win32 error code is $lastError');
+          throw Exception('Open port failed, win32 error code is $error');
         }
       }
-
-      if (GetCommState(handler, dcb) == FALSE) {
+      final getCommStateResult = GetCommState(handler, dcb);
+      if (getCommStateResult.value == false) {
         CloseHandle(handler);
-        throw Exception('GetCommState failed');
+        throw WindowsException(getCommStateResult.error.toHRESULT());
       }
 
       dcb
@@ -225,9 +237,10 @@ class SerialPort {
       _setCommState();
 
       _setCommTimeouts();
-
-      if (SetCommMask(handler, EV_RXCHAR) == 0) {
-        throw Exception('SetCommMask error');
+      final Win32Result(value: setCommMaskResult, error: setCommMaskError) =
+          SetCommMask(handler, EV_RXCHAR);
+      if (setCommMaskResult == false) {
+        throw WindowsException(setCommMaskError.toHRESULT());
       }
       _createEvent();
     } else {
@@ -291,9 +304,10 @@ class SerialPort {
 
   /// When [dcb] struct is changed, you must call [_setCommState] to update settings.
   void _setCommState() {
-    if (SetCommState(handler, dcb).value == false) {
-      throw Exception(
-          'SetCommState error, win32 error code is ${GetLastError()}');
+    final Win32Result(value: setCommStateResult, error: setCommStateError) =
+        SetCommState(handler, dcb);
+    if (setCommStateResult == false) {
+      throw WindowsException(setCommStateError.toHRESULT());
     } else {
       PurgeComm(handler, PURGE_RXCLEAR | PURGE_TXCLEAR);
     }
@@ -301,8 +315,12 @@ class SerialPort {
 
   /// When [commTimeouts] struct is changed, you must call [_setCommTimeouts] to update settings.
   void _setCommTimeouts() {
-    if (SetCommTimeouts(handler, commTimeouts).value == false) {
-      throw Exception('SetCommTimeouts error');
+    final Win32Result(
+      value: setCommTimeoutsResult,
+      error: setCommTimeoutsError
+    ) = SetCommTimeouts(handler, commTimeouts);
+    if (setCommTimeoutsResult == false) {
+      throw WindowsException(setCommTimeoutsError.toHRESULT());
     }
   }
 
@@ -456,21 +474,14 @@ class SerialPort {
       final readResult = readResultWin32Result.value;
 
       if (readResult != true) {
-        var error = GetLastError();
+        var error = readResultWin32Result.error;
         if (error != ERROR_SUCCESS && error != ERROR_IO_PENDING) {
-          throw Exception("ReadFile failed, win32 error code is $error");
+          throw WindowsException(error.toHRESULT());
         } else {
-          var overlappedResultOk = await _getOverlappedResult(
+          /// Just in case, if [_getOverlappedResult] does not return true, the code will query its return value every millisecond for 60s (defined by [maxOverlappedTimeout]) in the non-blocking mode.
+          /// Exception will be thrown if [_getOverlappedResult] return false finally, unless it is [ERROR_OPERATION_ABORTED].
+          await _getOverlappedResult(
               handler, _overlappedRead, _bytesRead, maxOverlappedTimeout);
-          if (!overlappedResultOk) {
-            var overlappedError = GetLastError();
-
-            /// OPERATION_ABORTED is not a exception
-            if (overlappedError != ERROR_OPERATION_ABORTED) {
-              throw Exception(
-                  "GetOverlappedResult failed, win32 error code is $overlappedError");
-            }
-          }
         }
       }
 
@@ -487,10 +498,13 @@ class SerialPort {
 
   /// It will return received data size in queue immediately (non-blocking).
   int _getDataSizeInQueue() {
-    if (ClearCommError(handler, _errors, _status) != TRUE) {
-      throw Exception(
-          "ClearCommError failed, win32 error code is ${GetLastError()}");
+    final Win32Result(value: clearCommErrorResult, error: clearCommErrorError) =
+        ClearCommError(handler, _errors, _status);
+
+    if (clearCommErrorResult != true) {
+      throw WindowsException(clearCommErrorError.toHRESULT());
     }
+
     return _status.ref.cbInQue;
   }
 
@@ -611,13 +625,14 @@ class SerialPort {
     }
 
     try {
-      if (WriteFile(handler, lpBuffer.cast<Uint8>(), length,
-              lpNumberOfBytesWritten, _overlappedWrite).value !=
-          true) {
-        var writeError = GetLastError();
+      final Win32Result(value: writeFileResult, error: writeFileError) =
+          WriteFile(handler, lpBuffer.cast<Uint8>(), length,
+              lpNumberOfBytesWritten, _overlappedWrite);
 
-        if (writeError != ERROR_SUCCESS && writeError != ERROR_IO_PENDING) {
-          throw Exception("WriteFile failed, win32 code is $writeError");
+      if (writeFileResult != true) {
+        if (writeFileError != ERROR_SUCCESS &&
+            writeFileError != ERROR_IO_PENDING) {
+          throw WindowsException(writeFileError.toHRESULT());
         }
 
         return await _getOverlappedResult(
@@ -638,9 +653,16 @@ class SerialPort {
     final lpNumberOfBytesWritten = calloc<DWORD>();
 
     try {
-      if (WriteFile(handler, lpBuffer, uint8list.length, lpNumberOfBytesWritten,
-              _overlappedWrite).value !=
-          true) {
+      final Win32Result(value: writeFileResult, error: writeFileError) =
+          WriteFile(handler, lpBuffer, uint8list.length, lpNumberOfBytesWritten,
+              _overlappedWrite);
+
+      if (writeFileResult != true) {
+        if (writeFileError != ERROR_SUCCESS &&
+            writeFileError != ERROR_IO_PENDING) {
+          throw WindowsException(writeFileError.toHRESULT());
+        }
+
         /// Overlapped will cause IO_PENDING
         return await _getOverlappedResult(
             handler, _overlappedWrite, lpNumberOfBytesWritten, timeout);
@@ -659,14 +681,31 @@ class SerialPort {
       Pointer<OVERLAPPED> lpOverlapped,
       Pointer<Uint32> lpNumberOfBytesTransferred,
       int timeout) async {
+    /// Because [GetOverlappedResult] will return false immediately when IO_PENDING, so we need to query its return value every millisecond until timeout.
+    /// If [GetOverlappedResult] return false finally, it will throw exception unless it is [ERROR_OPERATION_ABORTED].
+    /// If [ERROR_OPERATION_ABORTED] occurs, it means that read/write operation is completed but bytes size is less than expected. So it is not a exception for user, just return false.
+
+    WIN32_ERROR? lastError;
+
+    /// cache last error to check if it is OPERATION_ABORTED after loop
+
     for (int i = 0; i < timeout; i++) {
       await Future.delayed(Duration(milliseconds: 1));
-      if (GetOverlappedResult(
-              handler, lpOverlapped, lpNumberOfBytesTransferred, false).value ==
-          true) {
+      final Win32Result(value: getOverlappedResult, error: getOverlappedError) =
+          GetOverlappedResult(
+              handler, lpOverlapped, lpNumberOfBytesTransferred, false);
+
+      lastError = getOverlappedError;
+      if (getOverlappedResult == true) {
         return true;
       }
     }
+
+    if (lastError != ERROR_OPERATION_ABORTED) {
+      throw WindowsException(lastError!.toHRESULT());
+    }
+
+    /// If OPERATION_ABORTED, it means that read/write operation is completed but bytes size is less than expected. So it is not a exception for user, just return false.
     return false;
   }
 
@@ -780,25 +819,22 @@ class SerialPort {
   ///     required this.hardwareID,
   //     required this.manufactureName,
   ///   })];
-  static List<PortInfo> getPortsWithFullMessages({GUID? classGUIDStr}) {
+  static List<PortInfo> getPortsWithFullMessages({GUID? classGUID}) {
     /// Storage port information
     var portInfoLists = <PortInfo>[];
-    if (classGUIDStr == null) {
-      classGUIDStr = GUID_DEVINTERFACE_COMPORT;
+    if (classGUID == null) {
+      classGUID = GUID_DEVINTERFACE_COMPORT;
     }
-
-    /// Set Class GUID
-    final classGUID = classGUIDStr;
 
     /// Get Device info handle
     final hDeviceInfoWin32Result = SetupDiGetClassDevs(classGUID.toNative(),
         null, null, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT);
 
     final hDeviceInfo = hDeviceInfoWin32Result.value;
-    
+
     if (hDeviceInfo != INVALID_HANDLE_VALUE) {
       /// Init device info data
-      
+
       final devInfoData = calloc<SP_DEVINFO_DATA>();
       devInfoData.ref.cbSize = sizeOf<SP_DEVINFO_DATA>();
 
@@ -830,7 +866,7 @@ class SerialPort {
               devInfoData, DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_READ);
 
           final hDevKey = hDevKeyWin32Results.value;
-          
+
           if (hDevKey != INVALID_HANDLE_VALUE) {
             RegQueryValueEx(
                 hDevKey, "PortName".toPcwstr(), nullptr, portName, pcbData);
@@ -839,7 +875,8 @@ class SerialPort {
 
           /// Get friendly name
           if (SetupDiGetDeviceRegistryProperty(hDeviceInfo, devInfoData,
-                  SPDRP_FRIENDLYNAME, nullptr, friendlyName, 255, nullptr).value !=
+                      SPDRP_FRIENDLYNAME, nullptr, friendlyName, 255, nullptr)
+                  .value !=
               true) {
             /// Fallback
             // continue;
@@ -847,7 +884,8 @@ class SerialPort {
 
           /// Get Hardware ID
           if (SetupDiGetDeviceRegistryProperty(hDeviceInfo, devInfoData,
-                  SPDRP_HARDWAREID, nullptr, hardwareID, 255, nullptr).value !=
+                      SPDRP_HARDWAREID, nullptr, hardwareID, 255, nullptr)
+                  .value !=
               true) {
             /// Fallback
             // continue;
@@ -855,19 +893,21 @@ class SerialPort {
 
           /// Get MFG
           if (SetupDiGetDeviceRegistryProperty(hDeviceInfo, devInfoData,
-                  SPDRP_MFG, nullptr, manufactureName, 255, nullptr).value !=
+                      SPDRP_MFG, nullptr, manufactureName, 255, nullptr)
+                  .value !=
               true) {
             /// Fallback
             // continue;
           }
 
           if (SetupDiGetDeviceInstanceId(
-                  hDeviceInfo, devInfoData, deviceInstanceId, 255, nullptr).value !=
+                      hDeviceInfo, devInfoData, deviceInstanceId, 255, nullptr)
+                  .value !=
               true) {
             /// Fallback
             // continue;
           }
-          
+
           // if (SetupDiEnumDeviceInterfaces(hDeviceInfo, devInfoData, classGUID, i, deviceInterfaceData) != TRUE) {
           //   continue;
           // }
@@ -888,7 +928,7 @@ class SerialPort {
 
           final deviceInstanceIdStr =
               deviceInstanceId.cast<Utf16>().toDartString();
-        
+
           /// add to lists
           portInfoLists.add(PortInfo(
             portName: portNameStr,
