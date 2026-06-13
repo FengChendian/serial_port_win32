@@ -1,6 +1,6 @@
 # serial_port_win32
 
-A SerialPort library using win32 API. 
+A SerialPort library using win32 API.
 
 [![pub](https://img.shields.io/pub/v/serial_port_win32?color=blue)](https://pub.dev/packages/serial_port_win32)
 
@@ -13,6 +13,7 @@ Some main APIs change below:
 - `set Parity(int parity)` -> `set Parity(DCB_PARITY parity)`
 - `static List<PortInfo> getPortsWithFullMessages({String classGUIDStr = GUID_DEVINTERFACE_COMPORT})` -> `static List<PortInfo> getPortsWithFullMessages({GUID? classGUID})`
 - `set StopBits(int stopBits)` -> `set StopBits(DCB_STOP_BITS stopBits)`
+- `final LPWSTR _portNameUtf16;` -> `final PCWSTR _portNameUtf16;`
 - Some `Exception`s change to `WindowsException`s
 
 ### Deprecated
