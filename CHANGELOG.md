@@ -1,3 +1,7 @@
+## 3.0.0-dev.2
+
+- fix wrong using arena
+
 ## 3.0.0-dev.1
 
 - change `win32` dependency to 6.0.0
