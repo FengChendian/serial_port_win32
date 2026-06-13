@@ -88,19 +88,23 @@ class SerialPort {
   Function() readOnBeforeFunction = () {};
 
   /// Clears the DTR (data-terminal-ready) signal.
-  @Deprecated("Use win32 constant CLRDTR instead of this, because it is more clear to understand")
+  @Deprecated(
+      "Use win32 constant CLRDTR instead of this, because it is more clear to understand")
   static const int CLRDTR = 6;
 
   /// Clears the RTS (request-to-send) signal.
-  @Deprecated("Use win32 constant CLRRTS instead of this, because it is more clear to understand")
+  @Deprecated(
+      "Use win32 constant CLRRTS instead of this, because it is more clear to understand")
   static const int CLRRTS = 4;
 
   /// Sends the DTR (data-terminal-ready) signal.
-  @Deprecated("Use win32 constant SETDTR instead of this, because it is more clear to understand")
+  @Deprecated(
+      "Use win32 constant SETDTR instead of this, because it is more clear to understand")
   static const int SETDTR = 5;
 
   /// Sends the RTS (request-to-send) signal.
-  @Deprecated("Use win32 constant SETRTS instead of this, because it is more clear to understand")
+  @Deprecated(
+      "Use win32 constant SETRTS instead of this, because it is more clear to understand")
   static const int SETRTS = 3;
 
   /// reusable instance using [factory]
@@ -685,9 +689,8 @@ class SerialPort {
     /// If [GetOverlappedResult] return false finally, it will throw exception unless it is [ERROR_OPERATION_ABORTED].
     /// If [ERROR_OPERATION_ABORTED] occurs, it means that read/write operation is completed but bytes size is less than expected. So it is not a exception for user, just return false.
 
-    WIN32_ERROR? lastError;
-
     /// cache last error to check if it is OPERATION_ABORTED after loop
+    WIN32_ERROR? lastError;
 
     for (int i = 0; i < timeout; i++) {
       await Future.delayed(Duration(milliseconds: 1));
@@ -848,105 +851,106 @@ class SerialPort {
         final friendlyName = calloc<BYTE>(256);
         final hardwareID = calloc<BYTE>(256);
         final manufactureName = calloc<BYTE>(256);
-        PWSTR deviceInstanceId = using((arena) {
-          return arena.pwstrBuffer(MAX_PATH);
-        });
+        using((arena) {
+          final PWSTR deviceInstanceId = arena.pwstrBuffer(MAX_PATH);
 
-        /// [SP_DEVICE_INTERFACE_DATA] in dart
-        // final deviceInterfaceData = calloc<SP_DEVICE_INTERFACE_DATA>();
-        // deviceInterfaceData.ref.cbSize = sizeOf<SP_DEVICE_INTERFACE_DATA>();
-        //
-        // final deviceInterfaceDetailData =
-        //     calloc<SP_DEVICE_INTERFACE_DETAIL_DATA_>(1024);
-        // deviceInterfaceDetailData.ref.cbSize =
-        //     sizeOf<SP_DEVICE_INTERFACE_DETAIL_DATA_>();
-
-        try {
-          final hDevKeyWin32Results = SetupDiOpenDevRegKey(hDeviceInfo,
-              devInfoData, DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_READ);
-
-          final hDevKey = hDevKeyWin32Results.value;
-
-          if (hDevKey != INVALID_HANDLE_VALUE) {
-            RegQueryValueEx(
-                hDevKey, "PortName".toPcwstr(), nullptr, portName, pcbData);
-            RegCloseKey(hDevKey);
-          }
-
-          /// Get friendly name
-          if (SetupDiGetDeviceRegistryProperty(hDeviceInfo, devInfoData,
-                      SPDRP_FRIENDLYNAME, nullptr, friendlyName, 255, nullptr)
-                  .value !=
-              true) {
-            /// Fallback
-            // continue;
-          }
-
-          /// Get Hardware ID
-          if (SetupDiGetDeviceRegistryProperty(hDeviceInfo, devInfoData,
-                      SPDRP_HARDWAREID, nullptr, hardwareID, 255, nullptr)
-                  .value !=
-              true) {
-            /// Fallback
-            // continue;
-          }
-
-          /// Get MFG
-          if (SetupDiGetDeviceRegistryProperty(hDeviceInfo, devInfoData,
-                      SPDRP_MFG, nullptr, manufactureName, 255, nullptr)
-                  .value !=
-              true) {
-            /// Fallback
-            // continue;
-          }
-
-          if (SetupDiGetDeviceInstanceId(
-                      hDeviceInfo, devInfoData, deviceInstanceId, 255, nullptr)
-                  .value !=
-              true) {
-            /// Fallback
-            // continue;
-          }
-
-          // if (SetupDiEnumDeviceInterfaces(hDeviceInfo, devInfoData, classGUID, i, deviceInterfaceData) != TRUE) {
-          //   continue;
-          // }
+          /// [SP_DEVICE_INTERFACE_DATA] in dart
+          // final deviceInterfaceData = calloc<SP_DEVICE_INTERFACE_DATA>();
+          // deviceInterfaceData.ref.cbSize = sizeOf<SP_DEVICE_INTERFACE_DATA>();
           //
-          // if (SetupDiGetDeviceInterfaceDetail(hDeviceInfo, deviceInterfaceData, deviceInterfaceDetailData, 1023, nullptr, nullptr) != TRUE) {
-          //   continue;
-          // }
+          // final deviceInterfaceDetailData =
+          //     calloc<SP_DEVICE_INTERFACE_DETAIL_DATA_>(1024);
+          // deviceInterfaceDetailData.ref.cbSize =
+          //     sizeOf<SP_DEVICE_INTERFACE_DETAIL_DATA_>();
 
-          /// Convert Wchar to String
-          final String portNameStr = portName.cast<Utf16>().toDartString();
-          final String friendlyNameStr =
-              friendlyName.cast<Utf16>().toDartString();
-          // final String interfaceDetailDataStr = deviceInterfaceDetailData.ref.DevicePath;
-          // print(interfaceDetailDataStr);
-          final String hardwareIDStr = hardwareID.cast<Utf16>().toDartString();
-          final String manufactureNameStr =
-              manufactureName.cast<Utf16>().toDartString();
+          try {
+            final hDevKeyWin32Results = SetupDiOpenDevRegKey(hDeviceInfo,
+                devInfoData, DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_READ);
 
-          final deviceInstanceIdStr =
-              deviceInstanceId.cast<Utf16>().toDartString();
+            final hDevKey = hDevKeyWin32Results.value;
 
-          /// add to lists
-          portInfoLists.add(PortInfo(
-            portName: portNameStr,
-            friendlyName: friendlyNameStr,
-            hardwareID: hardwareIDStr,
-            manufactureName: manufactureNameStr,
-            deviceInstanceId: deviceInstanceIdStr,
-          ));
-        } finally {
-          free(portName);
-          free(pcbData);
-          free(friendlyName);
-          free(hardwareID);
-          free(manufactureName);
-          // free(deviceInstanceId);
-          // free(deviceInterfaceData);
-          // free(deviceInterfaceDetailData);
-        }
+            if (hDevKey != INVALID_HANDLE_VALUE) {
+              RegQueryValueEx(
+                  hDevKey, "PortName".toPcwstr(), nullptr, portName, pcbData);
+              RegCloseKey(hDevKey);
+            }
+
+            /// Get friendly name
+            if (SetupDiGetDeviceRegistryProperty(hDeviceInfo, devInfoData,
+                        SPDRP_FRIENDLYNAME, nullptr, friendlyName, 255, nullptr)
+                    .value !=
+                true) {
+              /// Fallback
+              // continue;
+            }
+
+            /// Get Hardware ID
+            if (SetupDiGetDeviceRegistryProperty(hDeviceInfo, devInfoData,
+                        SPDRP_HARDWAREID, nullptr, hardwareID, 255, nullptr)
+                    .value !=
+                true) {
+              /// Fallback
+              // continue;
+            }
+
+            /// Get MFG
+            if (SetupDiGetDeviceRegistryProperty(hDeviceInfo, devInfoData,
+                        SPDRP_MFG, nullptr, manufactureName, 255, nullptr)
+                    .value !=
+                true) {
+              /// Fallback
+              // continue;
+            }
+
+            if (SetupDiGetDeviceInstanceId(hDeviceInfo, devInfoData,
+                        deviceInstanceId, 255, nullptr)
+                    .value !=
+                true) {
+              /// Fallback
+              // continue;
+            }
+
+            // if (SetupDiEnumDeviceInterfaces(hDeviceInfo, devInfoData, classGUID, i, deviceInterfaceData) != TRUE) {
+            //   continue;
+            // }
+            //
+            // if (SetupDiGetDeviceInterfaceDetail(hDeviceInfo, deviceInterfaceData, deviceInterfaceDetailData, 1023, nullptr, nullptr) != TRUE) {
+            //   continue;
+            // }
+
+            /// Convert Wchar to String
+            final String portNameStr = portName.cast<Utf16>().toDartString();
+            final String friendlyNameStr =
+                friendlyName.cast<Utf16>().toDartString();
+            // final String interfaceDetailDataStr = deviceInterfaceDetailData.ref.DevicePath;
+            // print(interfaceDetailDataStr);
+            final String hardwareIDStr =
+                hardwareID.cast<Utf16>().toDartString();
+            final String manufactureNameStr =
+                manufactureName.cast<Utf16>().toDartString();
+
+            final deviceInstanceIdStr =
+                deviceInstanceId.cast<Utf16>().toDartString();
+
+            /// add to lists
+            portInfoLists.add(PortInfo(
+              portName: portNameStr,
+              friendlyName: friendlyNameStr,
+              hardwareID: hardwareIDStr,
+              manufactureName: manufactureNameStr,
+              deviceInstanceId: deviceInstanceIdStr,
+            ));
+          } finally {
+            free(portName);
+            free(pcbData);
+            free(friendlyName);
+            free(hardwareID);
+            free(manufactureName);
+            // free(deviceInstanceId);
+            // free(deviceInterfaceData);
+            // free(deviceInterfaceDetailData);
+          }
+        });
       }
 
       /// Destroy Device Info List
