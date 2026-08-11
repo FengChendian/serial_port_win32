@@ -1,3 +1,7 @@
+## 3.0.0
+
+- change version to formal 3.0.0
+
 ## 3.0.0-dev.2
 
 - fix wrong using arena
